@@ -49,6 +49,12 @@ p{margin:6px 0}
 .bdg.ok{color:#86efac;border-color:#166534;background:#052e16}
 .bdg.me{color:#7dd3fc;border-color:#075985;background:#082f49}
 .bdg.warn{color:#fcd34d;border-color:#78350f;background:#1c1405}
+.bdg.vio{color:#c4b5fd;border-color:#4c1d95;background:#1e1036}
+.tbl tr.sub td{font-weight:600;background:#182337}
+.tbl tr.sys td:first-child{padding-left:22px}
+.tbl tr.sys td:first-child::before{content:'↳ ';color:var(--mut)}
+.tbl tr.weak td:first-child{color:#fca5a5}
+.cap{font-size:12.5px;margin-top:6px}
 .stem{font-size:16.5px;margin-bottom:12px}
 .qq{font-weight:600;margin:14px 0 10px}
 .findings{background:var(--panel2);border-left:3px solid var(--vio);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:15px}
@@ -172,12 +178,57 @@ function chainOf(it){const c=it.causal_chain;if(Array.isArray(c))return c.map(x=
 function optText(it,l){const o=(it.options||[]).find(o=>o.label===l);return o?o.text:'';}
 function allTags(){const s=new Set();for(const it of Object.values(S.bank)){(it.misconception_tags||[]).forEach(t=>s.add(t));Object.values(it.option_analysis||{}).forEach(o=>o&&o.misconception&&s.add(o.misconception));}return [...s].sort();}
 
+/* ============ 분류 체계 (과목 > 분과) — 표기 흔들림을 표준명으로 통일 ============ */
+const SUBJ_ALIASES={
+  '내과':['internal medicine','im','내과학'],
+  '외과':['surgery','general surgery','외과학'],
+  '소아청소년과':['소아과','pediatrics','peds','소아청소년의학'],
+  '산부인과':['산과','부인과','obstetrics','gynecology','obgyn','ob/gyn'],
+  '정신건강의학과':['정신과','psychiatry','정신의학'],
+  '신경과':['neurology'],
+  '예방의학':['preventive medicine','역학','보건','예방의학·역학'],
+  '보건의약관계법규':['법규','의료법규','의료법','law','보건의료법규']
+};
+const SYS_ALIASES={
+  '순환기':['심장','심장내과','순환기내과','cardiology','cardio','cardiovascular','심혈관'],
+  '호흡기':['호흡기내과','폐','pulmonology','pulmonary','respiratory','호흡기·중환자'],
+  '소화기':['소화기내과','위장관','간','간담췌','gastroenterology','gi','hepatology','소화기·간'],
+  '신장':['신장내과','콩팥','nephrology','renal','신장·전해질','전해질','산염기','산-염기','신장/전해질'],
+  '내분비':['내분비내과','endocrinology','endocrine','대사','내분비·대사'],
+  '혈액종양':['혈액','종양','혈액종양내과','hematology','oncology','hemato-oncology','혈액·종양','종양내과'],
+  '감염':['감염내과','infectious disease','infection','id','감염병'],
+  '류마티스·알레르기':['류마티스','알레르기','류마티스내과','알레르기내과','rheumatology','allergy','류마티스/알레르기','알레르기·임상면역','류마티스·알레르기내과']
+};
+const SYS_ORDER=Object.keys(SYS_ALIASES);
+const NOSYS='(분과 미지정)';
+const _key=s=>String(s).toLowerCase().replace(/[\s_\-]/g,'');
+function canon(s,table){
+  if(s==null)return'';const raw=String(s).trim();if(!raw)return'';const k=_key(raw);
+  for(const[c,arr]of Object.entries(table))if(_key(c)===k||arr.some(a=>_key(a)===k))return c;
+  return raw;
+}
+function normClass(it){
+  const before=JSON.stringify([it.subject,it.system,it.related_systems]);
+  it.subject=canon(it.subject,SUBJ_ALIASES)||'미분류';
+  let sys=it.system,rel=it.related_systems!=null?it.related_systems:(it.secondary_systems||[]);
+  delete it.secondary_systems;
+  if(!Array.isArray(rel))rel=String(rel).split(/[,/+;]/);
+  if(Array.isArray(sys)){rel=[...sys.slice(1),...rel];sys=sys[0];}
+  else if(typeof sys==='string'&&/[,/+;]/.test(sys)&&!SYS_ALIASES[sys.trim()]){const p=sys.split(/[,/+;]/);sys=p[0];rel=[...p.slice(1),...rel];}
+  it.system=canon(sys,SYS_ALIASES);
+  it.related_systems=[...new Set(rel.map(x=>canon(x,SYS_ALIASES)).filter(x=>x&&x!==it.system))];
+  return before!==JSON.stringify([it.subject,it.system,it.related_systems]);
+}
+const primSys=it=>it.system||NOSYS;
+const allSys=it=>[primSys(it),...(it.related_systems||[])];
+const sysSort=(a,b)=>{const ia=SYS_ORDER.indexOf(a),ib=SYS_ORDER.indexOf(b);if(a===NOSYS)return 1;if(b===NOSYS)return -1;return(ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);};
+
 /* ============ 상태 & 저장소 (IndexedDB, 실패 시 localStorage) ============ */
 const S={bank:{},attempts:[],srs:{},flags:{},meta:{batches:[],deleted:[]}};
 let route=location.hash.slice(1)||'dash';
 let session=null;
-const setup={subjects:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
-const browse={q:'',subj:'',status:'all',limit:50};
+const setup={subjects:[],systems:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
+const browse={q:'',subj:'',sys:'',status:'all',limit:50};
 let dbp=null;
 function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open('kmle-qbank',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function kvGet(k){
@@ -193,6 +244,8 @@ const saveAll=()=>save('bank','attempts','srs','flags','meta');
 async function loadLocal(){
   for(const k of ['bank','attempts','srs','flags','meta']){const v=await kvGet(k);if(v!==undefined)S[k]=v;}
   S.meta.batches=S.meta.batches||[];S.meta.deleted=S.meta.deleted||[];
+  let changed=false;for(const it of Object.values(S.bank))if(normClass(it))changed=true;
+  if(changed)await save('bank');
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 }
 async function syncRemote(){
@@ -237,7 +290,7 @@ function normalizeItem(raw){
   if(Array.isArray(oa)){const m={};oa.forEach((x,i)=>{m[toL(x&&x.label)||LABELS[i]]=x;});oa=m;}
   if(oa&&typeof oa==='object'){const m={};for(const[k,v]of Object.entries(oa))m[toL(k)||k]=v;it.option_analysis=m;}
   if(it.difficulty!=null)it.difficulty=Number(it.difficulty)||null;
-  if(!it.subject)it.subject='미분류';
+  normClass(it);
   delete it.temp_id;
   return it;
 }
@@ -329,7 +382,7 @@ function weaknessPacket(atts,onlyUnresolved){
   for(const a of atts){if(a.skipped||a.correct)continue;const e=by[a.qid]||(by[a.qid]={w:0,d:0,ch:new Set(),lastConf:a.conf});e.w++;if(a.conf===3)e.d++;e.ch.add(a.choice);e.lastConf=a.conf;}
   const rows=Object.entries(by).filter(([q])=>S.bank[q]&&(!onlyUnresolved||unresolved(sm[q]))).map(([qid,e])=>{
     const it=S.bank[qid];const ch=[...e.ch];
-    return{qid,subject:it.subject,system:it.system,topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
+    return{qid,subject:it.subject,system:it.system,related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
       answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>((it.option_analysis||{})[c]||{}).misconception).filter(Boolean),
       wrong_count:e.w,dangerous_count:e.d,last_confidence:e.lastConf,takeaway:it.takeaway,misconception_tags:it.misconception_tags||[]};
   }).sort((a,b)=>(b.dangerous_count*2+b.wrong_count)-(a.dangerous_count*2+a.wrong_count)).slice(0,30);
@@ -348,7 +401,7 @@ function auditPacket(){
 }
 function genRequest(){
   const f=$('#rfocus').value.trim(),n=$('#rn').value||10,lv=$('#rlv').value,fl=f.toLowerCase();
-  const objs=Object.values(S.bank).filter(it=>!fl||[it.topic,it.system,it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl)).map(it=>it.learning_objective).filter(Boolean);
+  const objs=Object.values(S.bank).filter(it=>!fl||[it.topic,it.system,(it.related_systems||[]).join(' '),it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl)).map(it=>it.learning_objective).filter(Boolean);
   let t=`/generate n=${n} level=${lv}${f?` focus="${f}"`:''}`;
   if(objs.length)t+=`\n\nexisting_objectives (이미 출제됨 — 중복 금지):\n`+JSON.stringify(objs,null,1);
   const tags=allTags();if(tags.length)t+=`\n\nexisting_misconception_tags (가능하면 재사용):\n`+JSON.stringify(tags);
@@ -376,9 +429,10 @@ function sessionMD(){
 
 /* ============ 렌더링 공통 ============ */
 function badges(it){
-  const b=[];if(it.subject)b.push(esc([it.subject,it.system].filter(Boolean).join('·')));
+  const b=[];if(it.subject)b.push(esc([it.subject,it.system].filter(Boolean).join(' › ')));
   if(it.topic)b.push(esc(it.topic));
   let h=b.map(x=>`<span class="bdg">${x}</span>`).join('');
+  if((it.related_systems||[]).length)h+=`<span class="bdg vio">연계: ${esc(it.related_systems.join(', '))}</span>`;
   if(it.difficulty)h+=`<span class="bdg">Lv${it.difficulty}</span>`;
   if(it.question_type)h+=`<span class="bdg">${esc(TYPE_KO[it.question_type]||it.question_type)}</span>`;
   if(it.needs_review)h+=`<span class="bdg warn">검토 필요</span>`;
@@ -429,6 +483,39 @@ function explanation(it,choice){
 }
 function emptyState(){return `<div class="card empty"><h2>QBank가 비어 있습니다</h2><p class="mut">Gemini로 만든 문항 JSON을 넣으면 여기에 계속 쌓입니다.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-act="go" data-r="add">문항 추가하러 가기 →</button></div></div>`;}
 
+/* ============ 과목 > 분과 표 ============ */
+// 주 분과(primary)는 문항 수에 한 번만 셈. 연계 분과는 '연계' 열에 따로 셈.
+// 분과 정답률은 연계 문항 풀이까지 포함 — 그 분과 지식이 실제로 시험된 모든 기회를 반영.
+function subjectTable(items,sm){
+  const T={};
+  const cell=()=>({n:0,rel:0,att:0,c:0,t:0});
+  for(const it of items){
+    const s=it.subject||'미분류';const sub=T[s]||(T[s]={tot:cell(),sys:{}});
+    sub.tot.n++;if(sm[it.id])sub.tot.att++;
+    allSys(it).forEach((y,i)=>{const e=sub.sys[y]||(sub.sys[y]=cell());if(i===0)e.n++;else e.rel++;if(sm[it.id])e.att++;});
+  }
+  for(const a of S.attempts){
+    const it=S.bank[a.qid];if(!it)continue;const sub=T[it.subject||'미분류'];if(!sub)continue;
+    sub.tot.t++;if(a.correct)sub.tot.c++;
+    for(const y of allSys(it)){const e=sub.sys[y];if(e){e.t++;if(a.correct)e.c++;}}
+  }
+  // 가장 약한 분과: 시도 5회 이상 중 정답률 최저
+  let weak=null;
+  for(const[s,sub]of Object.entries(T))for(const[y,e]of Object.entries(sub.sys))if(y!==NOSYS&&e.t>=5){const acc=e.c/e.t;if(!weak||acc<weak.acc)weak={s,y,acc,t:e.t};}
+  const row=(cls,label,e,showRel)=>`<tr class="${cls}"><td>${esc(label)}</td><td class="mono">${e.n}</td><td class="mono mut">${showRel?(e.rel||''):''}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`;
+  let body='';
+  for(const[s,sub]of Object.entries(T).sort((a,b)=>b[1].tot.n-a[1].tot.n)){
+    body+=row('sub',s,sub.tot,false);
+    const sys=Object.entries(sub.sys).sort((a,b)=>sysSort(a[0],b[0]));
+    if(!(sys.length===1&&sys[0][0]===NOSYS))
+      for(const[y,e]of sys)body+=row('sys'+(weak&&weak.s===s&&weak.y===y?' weak':''),y,e,true);
+  }
+  const hasRel=items.some(it=>(it.related_systems||[]).length);
+  return `<div class="card"><h2>과목 › 분과별</h2><div class="tblwrap"><table class="tbl"><tr><th>과목 / 분과</th><th>문항</th><th>연계</th><th>풀어봄</th><th>정답률</th><th></th></tr>${body}</table></div>
+  ${weak?`<div class="bad-t cap">가장 약한 분과: ${esc(weak.s)} › ${esc(weak.y)} — 정답률 ${pct(weak.acc)} (${weak.t}회). 대시보드 위 '스마트 세션' 대신 문제 풀기에서 이 분과만 골라 집중해 보세요.</div>`:''}
+  <div class="mut cap">문항 = 그 분과가 <b>주 분과</b>인 문항 수(과목 합계와 일치). ${hasRel?'연계 = 다른 분과가 주이지만 이 분과 지식도 필요한 다학제 문항 수. ':''}분과 정답률은 연계 문항의 풀이까지 포함합니다.</div></div>`;
+}
+
 /* ============ 뷰: 대시보드 ============ */
 function vDash(){
   const items=Object.values(S.bank);if(!items.length)return emptyState();
@@ -440,10 +527,7 @@ function vDash(){
   let h=`<div class="card"><h2>대시보드</h2><div class="grid">${stat(items.length,'총 문항')}${stat(attempted,'풀어본 문항')}${stat(tot?pct(cor/tot):'—','누적 정답률')}${stat(due,'복습 대기')}${stat(dangerN,'미해결 치명적 착각')}${stat(today,'오늘 푼 횟수')}</div>
   <div class="actions"><button class="btn pri" data-act="quick" data-mode="smart">스마트 세션 20문항</button>${dangerN?`<button class="btn dangerb" data-act="quick" data-mode="danger">⚠️ 치명적 착각 재공격 (${dangerN})</button>`:''}${due?`<button class="btn" data-act="quick" data-mode="due">복습만 (${due})</button>`:''}</div></div>`;
   h+=`<div class="card"><h2>확신도 보정 (Calibration)</h2>${calibTable(calib(S.attempts))}</div>`;
-  const bySub={};
-  for(const it of items){const s=it.subject||'미분류';const e=bySub[s]||(bySub[s]={n:0,att:0,c:0,t:0});e.n++;if(sm[it.id])e.att++;}
-  for(const a of S.attempts){const it=S.bank[a.qid];if(!it)continue;const e=bySub[it.subject||'미분류'];if(!e)continue;e.t++;if(a.correct)e.c++;}
-  h+=`<div class="card"><h2>과목별</h2><div class="tblwrap"><table class="tbl"><tr><th>과목</th><th>문항</th><th>풀어봄</th><th>정답률</th><th></th></tr>${Object.entries(bySub).sort((a,b)=>b[1].n-a[1].n).map(([s,e])=>`<tr><td>${esc(s)}</td><td class="mono">${e.n}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`).join('')}</table></div></div>`;
+  h+=subjectTable(items,sm);
   const mt=misTally(S.attempts).slice(0,10);
   if(mt.length)h+=`<div class="card"><h2>나를 가장 많이 넘어뜨린 오개념</h2><div class="tblwrap"><table class="tbl"><tr><th>오개념 태그</th><th>오답</th><th>치명적</th><th>주제</th></tr>${mt.map(m=>`<tr><td><code>${esc(m.tag)}</code></td><td class="mono">${m.n}</td><td class="mono ${m.d?'bad-t':''}">${m.d}</td><td class="mut">${esc([...m.topics].slice(0,3).join(', '))}</td></tr>`).join('')}</table></div></div>`;
   h+=`<div class="card"><h2>Gemini 루프</h2><p class="mut">버튼을 누르면 Gemini에 바로 붙여넣을 수 있는 요청문이 복사됩니다.</p><div class="actions"><button class="btn" data-act="copyWeak">/weakness 패킷 복사</button><button class="btn" data-act="copyCoverage">/coverage 패킷 복사</button>${flagN?`<button class="btn" data-act="copyAudit">🚩 신고 문항 /audit 패킷 (${flagN})</button>`:''}</div></div>`;
@@ -457,6 +541,7 @@ function pool(){
   const sm=statsMap(),now=Date.now(),kw=setup.kw.trim().toLowerCase();
   let ids=Object.values(S.bank).filter(it=>{
     if(setup.subjects.length&&!setup.subjects.includes(it.subject||'미분류'))return false;
+    if(setup.systems.length&&!allSys(it).some(y=>setup.systems.includes(y)))return false;
     const d=it.difficulty;if(d!=null&&((setup.dmin&&d<setup.dmin)||(setup.dmax&&d>setup.dmax)))return false;
     if(setup.exFlag&&S.flags[it.id])return false;
     if(kw){const hay=[it.topic,it.system,it.subject,it.learning_objective,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(kw))return false;}
@@ -480,6 +565,10 @@ function vSetup(){
   const modes=[['smart','스마트: 복습 대기 → 새 문제 → 나머지'],['new','새 문제만'],['due','복습 대기만'],['wrong','최근 틀린 문제'],['danger','치명적 착각만'],['random','전체 랜덤']];
   return `<div class="card"><h2>문제 풀기</h2>
   <h3>과목 (선택하지 않으면 전체)</h3><div class="chips">${subs.map(s=>`<label class="chip"><input type="checkbox" data-set="subj" value="${esc(s)}"${setup.subjects.includes(s)?' checked':''}>${esc(s)}</label>`).join('')}</div>
+  ${(()=>{const scope=items.filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));
+    const cnt={};scope.forEach(i=>allSys(i).forEach(y=>{cnt[y]=(cnt[y]||0)+1;}));
+    const ys=Object.keys(cnt).sort(sysSort);if(!ys.length||(ys.length===1&&ys[0]===NOSYS))return'';
+    return `<h3>분과 (선택하지 않으면 전체 · 연계 문항 포함)</h3><div class="chips">${ys.map(y=>`<label class="chip"><input type="checkbox" data-set="sys" value="${esc(y)}"${setup.systems.includes(y)?' checked':''}>${esc(y)} <span class="mut mono">${cnt[y]}</span></label>`).join('')}</div>`;})()}
   <div class="row">
    <label class="field">출제 방식<select data-set="mode">${modes.map(([v,l])=>`<option value="${v}"${setup.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>
    <label class="field">문항 수<input type="number" min="1" max="300" data-set="n" value="${setup.n}" style="width:90px"></label>
@@ -566,6 +655,7 @@ function browseList(){
   const sm=statsMap(),q=browse.q.trim().toLowerCase();
   let list=Object.values(S.bank).filter(it=>{
     if(browse.subj&&(it.subject||'미분류')!==browse.subj)return false;
+    if(browse.sys&&!allSys(it).includes(browse.sys))return false;
     const st=sm[it.id];
     switch(browse.status){
       case 'new':if(st)return false;break;
@@ -589,12 +679,13 @@ function vBrowse(){
   return `<div class="card"><h2>문항 목록</h2><div class="row">
   <input type="text" data-b="q" value="${esc(browse.q)}" placeholder="검색: 주제·LO·본문·태그·ID" style="flex:1;min-width:200px">
   <select data-b="subj"><option value="">전체 과목</option>${subs.map(s=>`<option${browse.subj===s?' selected':''}>${esc(s)}</option>`).join('')}</select>
+  <select data-b="sys"><option value="">전체 분과</option>${[...new Set(Object.values(S.bank).flatMap(allSys))].sort(sysSort).map(y=>`<option${browse.sys===y?' selected':''}>${esc(y)}</option>`).join('')}</select>
   <select data-b="status">${sts.map(([v,l])=>`<option value="${v}"${browse.status===v?' selected':''}>${l}</option>`).join('')}</select></div>
   <div id="blist">${browseList()}</div></div>`;
 }
 function detailBody(it,choice,ctx){
   let h=`<div class="qhead">${badges(it)}</div>`+qBody(it,{interactive:false,choice})+explanation(it,choice);
-  if(ctx==='browse')h+=`<div class="actions"><button class="btn sm" data-act="solo" data-id="${esc(it.id)}">이 문항 풀기</button><button class="btn ghost sm" data-act="flag" data-id="${esc(it.id)}">${S.flags[it.id]?'🚩 신고 해제':'🚩 오류 신고'}</button><button class="btn dangerb sm" data-act="del" data-id="${esc(it.id)}">삭제</button></div>`;
+  if(ctx==='browse')h+=`<div class="actions"><button class="btn sm" data-act="solo" data-id="${esc(it.id)}">이 문항 풀기</button><button class="btn ghost sm" data-act="flag" data-id="${esc(it.id)}">${S.flags[it.id]?'🚩 신고 해제':'🚩 오류 신고'}</button><button class="btn ghost sm" data-act="reclass" data-id="${esc(it.id)}">분류 수정</button><button class="btn dangerb sm" data-act="del" data-id="${esc(it.id)}">삭제</button></div>`;
   return h;
 }
 
@@ -658,6 +749,14 @@ app.addEventListener('click',async e=>{
     case 'solo':startSession([id]);break;
     case 'flag':toggleFlag(id);break;
     case 'del':delItem(id);break;
+    case 'reclass':{
+      const it=S.bank[id];if(!it)break;
+      const subj=prompt('과목 (예: 내과, 외과, 소아청소년과)',it.subject||'');if(subj===null)break;
+      const sys=prompt(`주 분과 1개\n내과 표준명: ${SYS_ORDER.join(', ')}\n(비우면 미지정)`,it.system||'');if(sys===null)break;
+      const rel=prompt('연계 분과 (다학제 문항일 때, 쉼표로 구분. 없으면 비움)',(it.related_systems||[]).join(', '));if(rel===null)break;
+      it.subject=subj;it.system=sys;it.related_systems=rel;normClass(it);
+      await save('bank');toast(`분류 변경: ${it.subject} › ${primSys(it)}${it.related_systems.length?' + '+it.related_systems.join(', '):''}`);refreshList();
+      break;}
     case 'more':browse.limit+=50;$('#blist').innerHTML=browseList();break;
     case 'copyMD':copy(sessionMD());break;
     case 'copyWeakSession':copy(weaknessPacket(sessionAtts(),false));break;
@@ -677,7 +776,12 @@ app.addEventListener('click',async e=>{
 });
 function onSetup(t){
   const k=t.dataset.set;
-  if(k==='subj')setup.subjects=[...app.querySelectorAll('[data-set=subj]:checked')].map(x=>x.value);
+  if(k==='subj'){setup.subjects=[...app.querySelectorAll('[data-set=subj]:checked')].map(x=>x.value);
+    // 과목이 바뀌면 분과 목록도 바뀌므로 다시 그림. 범위 밖으로 나간 분과 선택은 해제
+    const scope=Object.values(S.bank).filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));
+    const valid=new Set(scope.flatMap(allSys));setup.systems=setup.systems.filter(y=>valid.has(y));
+    if(!onSetup._busy){onSetup._busy=true;render();onSetup._busy=false;}return;}
+  else if(k==='sys')setup.systems=[...app.querySelectorAll('[data-set=sys]:checked')].map(x=>x.value);
   else if(k==='exFlag')setup.exFlag=t.checked;
   else if(k==='n'||k==='dmin'||k==='dmax')setup[k]=Number(t.value)||0;
   else setup[k]=t.value;

@@ -1,0 +1,725 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KMLE QBank">
+<title>KMLE QBank</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0f172a;--panel:#1e293b;--panel2:#162032;--line:#334155;--tx:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8;--ok:#22c55e;--bad:#ef4444;--warn:#f59e0b;--vio:#a78bfa;
+--mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-text-size-adjust:100%}
+header{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.hwrap{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-family:var(--mono);font-weight:600;color:var(--acc);letter-spacing:.5px;white-space:nowrap}
+nav{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
+nav::-webkit-scrollbar{display:none}
+nav a{color:var(--mut);text-decoration:none;padding:6px 10px;border-radius:8px;white-space:nowrap;font-size:14px}
+nav a.on{background:var(--panel);color:var(--tx)}
+main{max-width:960px;margin:0 auto;padding:20px 16px 80px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{font-size:19px;margin:0 0 12px}
+h3{font-size:14px;margin:12px 0 8px;color:var(--mut);font-weight:600}
+p{margin:6px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
+.stat .n{font-family:var(--mono);font-size:22px;font-weight:600}
+.stat .l{color:var(--mut);font-size:13px}
+.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--tx);padding:9px 14px;border-radius:10px;font:inherit;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;line-height:1.3}
+.btn:hover{border-color:#64748b}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#04121f;font-weight:600}
+.btn.pri:disabled{opacity:.35;cursor:not-allowed}
+.btn.ghost{background:transparent}
+.btn.dangerb{border-color:#991b1b;color:#fca5a5;background:#2a0b0b}
+.btn.sm{padding:4px 10px;font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.actions.sticky{position:sticky;bottom:12px;background:rgba(30,41,59,.96);padding:10px;border-radius:12px;border:1px solid var(--line)}
+.qhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:13px}
+.qhead .end{margin-left:auto}
+.bdg{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--mut);background:var(--panel2);white-space:nowrap}
+.bdg.ok{color:#86efac;border-color:#166534;background:#052e16}
+.bdg.me{color:#7dd3fc;border-color:#075985;background:#082f49}
+.bdg.warn{color:#fcd34d;border-color:#78350f;background:#1c1405}
+.stem{font-size:16.5px;margin-bottom:12px}
+.qq{font-weight:600;margin:14px 0 10px}
+.findings{background:var(--panel2);border-left:3px solid var(--vio);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:15px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{color:var(--mut);font-weight:500}
+.tblwrap{overflow-x:auto}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;background:var(--panel2);border:1.5px solid var(--line);color:var(--tx);border-radius:12px;padding:12px 14px;font:inherit;cursor:pointer;line-height:1.5}
+.opt:hover:not(:disabled){border-color:#64748b}
+.opt.sel{border-color:var(--acc);background:#0c2a3d}
+.opt.ok{border-color:var(--ok);background:#052e16}
+.opt.bad{border-color:var(--bad);background:#3b0a0a}
+.opt.dim{opacity:.6}
+.opt:disabled{cursor:default;color:var(--tx)}
+.ol{font-family:var(--mono);color:var(--mut);min-width:1.4em}
+.conf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
+.seg button{background:var(--panel2);color:var(--mut);border:0;border-right:1px solid var(--line);padding:8px 12px;font:inherit;font-size:14px;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--acc);color:#04121f;font-weight:600}
+.hint{font-size:12px;margin-top:8px}
+.banner{border-radius:12px;padding:12px 14px;margin:16px 0 4px;font-size:15px;border:1px solid}
+.banner.ok{background:#052e16;border-color:#166534;color:#bbf7d0}
+.banner.bad{background:#3b0a0a;border-color:#7f1d1d;color:#fecaca}
+.banner.danger{background:linear-gradient(135deg,#450a0a,#7f1d1d);border-color:#ef4444;color:#fff}
+.banner.luck{background:#3a2a05;border-color:#92400e;color:#fde68a}
+.banner.info{background:var(--panel2);border-color:var(--line);color:var(--mut)}
+.exp{margin-top:14px}
+.exp h4{font-size:12px;letter-spacing:.8px;color:var(--mut);margin:20px 0 8px;font-family:var(--mono);font-weight:600}
+.takeaway{background:#1c1a0b;border:1px solid #713f12;border-left:4px solid var(--warn);padding:12px 14px;border-radius:10px;font-weight:600;color:#fef3c7}
+.takeaway .k{display:block;font-family:var(--mono);font-size:11px;color:var(--warn);letter-spacing:1px;margin-bottom:2px}
+.lo{font-size:14px;margin:10px 0 0}
+.chain{list-style:none;padding:0;margin:0;counter-reset:c}
+.chain li{position:relative;padding:8px 12px 8px 38px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;margin-bottom:22px;counter-increment:c;font-size:15px}
+.chain li::before{content:counter(c);position:absolute;left:12px;top:8px;font-family:var(--mono);color:var(--acc);font-size:13px}
+.chain li:not(:last-child)::after{content:'↓';position:absolute;left:50%;bottom:-21px;color:var(--mut);font-size:14px}
+.chain li:last-child{margin-bottom:0;border-color:#0e7490}
+.oa{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--panel2)}
+.oa.ans{border-color:var(--ok)}
+.oa.mine{border-color:var(--bad)}
+.oah{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;font-weight:600;margin-bottom:6px}
+.oat{flex:1;min-width:55%}
+.oa dl{margin:0;display:grid;grid-template-columns:96px 1fr;gap:6px 12px;font-size:14.5px}
+.oa dt{color:var(--mut);font-size:13px}
+.oa dd{margin:0}
+@media(max-width:600px){.oa dl{grid-template-columns:1fr;gap:2px}.oa dt{margin-top:6px}}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:13.5px;background:var(--panel2);cursor:pointer;color:var(--tx);text-decoration:none}
+.chip.link{color:#7dd3fc}
+.meta{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;border-top:1px dashed var(--line);padding-top:12px}
+.warn{color:#fcd34d}.bad-t{color:#fca5a5}.mut{color:var(--mut)}.mono{font-family:var(--mono)}
+code{font-family:var(--mono);font-size:12.5px;background:#0b1222;border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:#c4b5fd;word-break:break-all}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:12px 0}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
+input[type=text],input[type=number],select,textarea{background:#0b1222;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:9px 11px;font:inherit;font-size:14px;max-width:100%}
+textarea{width:100%;font-family:var(--mono);font-size:12.5px;resize:vertical}
+details.qd{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--panel2)}
+details.qd>summary{cursor:pointer;padding:10px 14px;list-style:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px}
+details.qd>summary::-webkit-details-marker{display:none}
+details.qd[open]>summary{border-bottom:1px solid var(--line)}
+.dbody{padding:14px}
+.bar{height:8px;background:#0b1222;border-radius:4px;overflow:hidden;min-width:70px}
+.bar>i{display:block;height:100%;background:var(--acc)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#0b1222;border:1px solid var(--line);color:var(--tx);padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:50;font-size:14px;max-width:90vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.err{border-color:var(--bad)}
+.empty{text-align:center;padding:40px 18px}
+.rep div{margin:4px 0;font-size:14px}
+footer{max-width:960px;margin:0 auto;padding:0 16px 40px;color:#475569;font-size:12px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header><div class="hwrap"><span class="logo">KMLE·QBank</span>
+<nav>
+<a href="#dash" data-r="dash">대시보드</a>
+<a href="#quiz" data-r="quiz">문제 풀기</a>
+<a href="#add" data-r="add">문항 추가</a>
+<a href="#browse" data-r="browse">문항 목록</a>
+<a href="#backup" data-r="backup">백업·동기화</a>
+</nav></div></header>
+<main id="app"></main>
+<footer>KMLE QBank v1.0 · 데이터는 이 기기 브라우저에 저장됩니다 · 주 1회 백업 권장</footer>
+<div id="toast"></div>
+<script>
+'use strict';
+/* ============ 상수 & 유틸 ============ */
+const CIR={A:'①',B:'②',C:'③',D:'④',E:'⑤',F:'⑥'};
+const CIR2L={'①':'A','②':'B','③':'C','④':'D','⑤':'E','⑥':'F'};
+const LABELS='ABCDEF';
+const TYPE_KO={diagnosis:'진단',next_best_step:'다음 단계',treatment:'치료',mechanism:'기전',complication:'합병증',prognosis:'예후',interpretation:'검사 해석',prevention_epi:'예방·역학',law:'법규'};
+const CONF_KO={1:'찍음',2:'반쯤 확신',3:'확실'};
+const DAY=864e5;
+const $=s=>document.querySelector(s);
+const app=$('#app');
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/\n/g,'<br>');
+const norm=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+const pct=x=>x==null?'—':Math.round(x*100)+'%';
+function dstr(ts){const d=new Date(ts),p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function toast(msg,type){const t=$('#toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className='';},2800);}
+async function copy(text){
+  if(!text) return;
+  try{await navigator.clipboard.writeText(text);toast('클립보드에 복사됨 — Gemini에 붙여넣으세요');}
+  catch(e){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');toast('클립보드에 복사됨');}catch(_){toast('복사 실패','err');}ta.remove();}
+}
+function download(name,content){
+  const blob=new Blob([typeof content==='string'?content:JSON.stringify(content,null,1)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);
+}
+function cyrb53(str,seed=0){let h1=0xdeadbeef^seed,h2=0x41c6ce57^seed;for(let i=0,ch;i<str.length;i++){ch=str.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677);}
+  h1=Math.imul(h1^(h1>>>16),2246822507);h1^=Math.imul(h2^(h2>>>13),3266489909);h2=Math.imul(h2^(h2>>>16),2246822507);h2^=Math.imul(h1^(h1>>>13),3266489909);
+  return 4294967296*(2097151&h2)+(h1>>>0);}
+function makeId(it){const key=norm(it.stem)+'|'+norm(it.question)+'|'+(it.options||[]).map(o=>norm(o.text)).join('|');
+  return 'Q-'+cyrb53(key).toString(36).toUpperCase().padStart(8,'0').slice(-8);}
+function strip(it){const r={};for(const k in it){if(k[0]!=='_')r[k]=it[k];}return r;}
+function chainOf(it){const c=it.causal_chain;if(Array.isArray(c))return c.map(x=>typeof x==='string'?x:JSON.stringify(x));if(!c)return[];return String(c).split(/\s*(?:→|->|\n)\s*/).filter(Boolean);}
+function optText(it,l){const o=(it.options||[]).find(o=>o.label===l);return o?o.text:'';}
+function allTags(){const s=new Set();for(const it of Object.values(S.bank)){(it.misconception_tags||[]).forEach(t=>s.add(t));Object.values(it.option_analysis||{}).forEach(o=>o&&o.misconception&&s.add(o.misconception));}return [...s].sort();}
+
+/* ============ 상태 & 저장소 (IndexedDB, 실패 시 localStorage) ============ */
+const S={bank:{},attempts:[],srs:{},flags:{},meta:{batches:[],deleted:[]}};
+let route=location.hash.slice(1)||'dash';
+let session=null;
+const setup={subjects:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
+const browse={q:'',subj:'',status:'all',limit:50};
+let dbp=null;
+function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open('kmle-qbank',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function kvGet(k){
+  try{const db=await(dbp||(dbp=idbOpen()));return await new Promise((res,rej)=>{const q=db.transaction('kv','readonly').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);});}
+  catch(e){try{const v=localStorage.getItem('kmle:'+k);return v?JSON.parse(v):undefined;}catch(_){return undefined;}}
+}
+async function kvSet(k,v){
+  try{const db=await(dbp||(dbp=idbOpen()));await new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+  catch(e){try{localStorage.setItem('kmle:'+k,JSON.stringify(v));}catch(_){toast('저장 실패 — 백업을 내보내세요','err');}}
+}
+async function save(...keys){for(const k of keys)await kvSet(k,S[k]);}
+const saveAll=()=>save('bank','attempts','srs','flags','meta');
+async function loadLocal(){
+  for(const k of ['bank','attempts','srs','flags','meta']){const v=await kvGet(k);if(v!==undefined)S[k]=v;}
+  S.meta.batches=S.meta.batches||[];S.meta.deleted=S.meta.deleted||[];
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+}
+async function syncRemote(){
+  if(location.protocol==='file:')return;
+  for(const path of ['bank.json','data/bank.json']){
+    try{const r=await fetch(path,{cache:'no-store'});if(!r.ok)continue;const data=await r.json();
+      const rep=ingestData([data],'repo:'+path,{update:false});
+      if(rep.added){await saveAll();toast(`저장소 ${path}에서 새 문항 ${rep.added}개 동기화`);render();}
+    }catch(e){}
+  }
+}
+
+/* ============ 입력 파싱 & 적재 ============ */
+function parseInput(text){
+  const blocks=[];const re=/```(?:json)?\s*([\s\S]*?)```/gi;let m;
+  while((m=re.exec(text)))blocks.push(m[1]);
+  if(!blocks.length)blocks.push(text);
+  const out=[];
+  for(let b of blocks){
+    b=b.trim();const s=b.search(/[\[{]/);if(s<0)continue;b=b.slice(s);
+    const e=Math.max(b.lastIndexOf('}'),b.lastIndexOf(']'));if(e<0)continue;b=b.slice(0,e+1);
+    try{out.push(JSON.parse(b));}
+    catch(e1){try{out.push(JSON.parse(b.replace(/,\s*([}\]])/g,'$1')));}catch(e2){throw new Error('JSON 해석 실패: '+e1.message+' — Gemini에게 "유효한 JSON으로 다시 출력"을 요청하세요.');}}
+  }
+  if(!out.length)throw new Error('JSON을 찾지 못했습니다.');
+  return out;
+}
+function extractItems(data){
+  if(!data||typeof data!=='object')return{items:[],metas:[]};
+  if(Array.isArray(data)){const items=[],metas=[];for(const d of data){const r=extractItems(d);items.push(...r.items);metas.push(...r.metas);}return{items,metas};}
+  if(data.schema==='kmle-qbank-backup')return{items:Object.values(data.bank||{}),metas:[]};
+  if(Array.isArray(data.items))return{items:data.items,metas:data.batch_meta?[data.batch_meta]:[]};
+  if(data.stem)return{items:[data],metas:[]};
+  return{items:[],metas:data.batch_meta?[data.batch_meta]:[]};
+}
+function normalizeItem(raw){
+  const it=JSON.parse(JSON.stringify(raw||{}));
+  const toL=x=>{let s=String(x==null?'':x).trim();if(CIR2L[s[0]])return CIR2L[s[0]];s=s.toUpperCase().replace(/[^A-F]/g,'');return s.slice(0,1);};
+  if(Array.isArray(it.options))it.options=it.options.map((o,i)=>typeof o==='string'?{label:LABELS[i],text:o}:{label:toL(o.label)||LABELS[i],text:o.text!=null?o.text:(o.content||'')});
+  if(it.answer!=null)it.answer=toL(it.answer);
+  let oa=it.option_analysis;
+  if(Array.isArray(oa)){const m={};oa.forEach((x,i)=>{m[toL(x&&x.label)||LABELS[i]]=x;});oa=m;}
+  if(oa&&typeof oa==='object'){const m={};for(const[k,v]of Object.entries(oa))m[toL(k)||k]=v;it.option_analysis=m;}
+  if(it.difficulty!=null)it.difficulty=Number(it.difficulty)||null;
+  if(!it.subject)it.subject='미분류';
+  delete it.temp_id;
+  return it;
+}
+function validate(it){
+  const errs=[],warns=[];
+  if(!it.stem)errs.push('stem 없음');
+  if(!Array.isArray(it.options)||it.options.length<2)errs.push('options 없음');
+  else if(it.options.length!==5)warns.push(`선지 ${it.options.length}개`);
+  const labels=(it.options||[]).map(o=>o.label);
+  if(!it.answer||!labels.includes(it.answer))errs.push('answer가 선지에 없음');
+  const oa=it.option_analysis||{};
+  const miss=labels.filter(l=>!oa[l]);if(miss.length)warns.push('해설 누락 선지 '+miss.join(','));
+  const corr=labels.filter(l=>oa[l]&&oa[l].verdict==='correct');
+  if(corr.length>1)errs.push('verdict=correct 선지가 2개 이상 (두 정답)');
+  if(corr.length===1&&corr[0]!==it.answer)errs.push('answer와 정답 해설 불일치');
+  if(it.needs_review)warns.push('needs_review');
+  if(it.generator_confidence&&it.generator_confidence!=='high')warns.push('생성 확신도 '+it.generator_confidence);
+  return{errs,warns};
+}
+function ingestData(list,source,opts={update:true}){
+  const rep={added:0,updated:0,dup:0,invalid:[],warned:[],metas:[]};
+  const batchId='B'+Date.now().toString(36);
+  for(const data of list){
+    const{items,metas}=extractItems(data);rep.metas.push(...metas);
+    for(const raw of items){
+      const it=normalizeItem(raw);const v=validate(it);
+      if(v.errs.length){rep.invalid.push({stem:norm(it.stem).slice(0,50),errs:v.errs});continue;}
+      const id=it.id||makeId(it);
+      if(!opts.update&&S.meta.deleted.includes(id))continue;
+      const exist=S.bank[id];
+      if(exist){
+        if(!opts.update){rep.dup++;continue;}
+        if(JSON.stringify(strip(exist))===JSON.stringify(strip(Object.assign({},it,{id})))){rep.dup++;continue;}
+        it.id=id;it._added=exist._added;it._source=source;it._updated=Date.now();S.bank[id]=it;delete S.flags[id];rep.updated++;continue;
+      }
+      it.id=id;it._added=Date.now();it._source=source;it._batch=batchId;S.bank[id]=it;rep.added++;
+      if(v.warns.length)rep.warned.push({id,warns:v.warns});
+    }
+  }
+  if((rep.added||rep.updated)&&!source.startsWith('repo'))S.meta.batches.push({id:batchId,ts:Date.now(),source,added:rep.added,updated:rep.updated,metas:rep.metas});
+  return rep;
+}
+function reportHTML(rep){
+  let h=`<div class="banner ${rep.added||rep.updated?'ok':'info'}">새 문항 <b>${rep.added}</b>개 추가${rep.updated?` · 수정본 반영 <b>${rep.updated}</b>개`:''} · 중복 ${rep.dup}개 건너뜀${rep.invalid.length?` · <b>형식 오류 ${rep.invalid.length}개 제외</b>`:''}</div><div class="rep">`;
+  for(const x of rep.invalid)h+=`<div class="bad-t">✗ "${esc(x.stem)}…" — ${esc(x.errs.join(', '))}</div>`;
+  for(const x of rep.warned)h+=`<div class="warn">△ <span class="mono">${esc(x.id)}</span> — ${esc(x.warns.join(', '))}</div>`;
+  for(const m of rep.metas){
+    if((m.conflicts||[]).length)h+=`<div class="warn">⚠ Gemini 보고 — 근거 충돌: ${esc(JSON.stringify(m.conflicts))}</div>`;
+    if((m.coverage_gaps||[]).length)h+=`<div class="mut">ⓘ 근거 부족(coverage gap): ${esc(JSON.stringify(m.coverage_gaps))}</div>`;
+    if(m.notes)h+=`<div class="mut">ⓘ ${esc(m.notes)}</div>`;
+  }
+  return h+'</div>';
+}
+
+/* ============ 통계 & 간격반복 ============ */
+function statsMap(){const m={};for(const a of S.attempts){const s=m[a.qid]||(m[a.qid]={n:0,c:0,w:0,danger:0,last:null});s.n++;if(a.correct)s.c++;else{s.w++;if(a.conf===3)s.danger++;}s.last=a;}return m;}
+const isDue=(id,now)=>{const s=S.srs[id];return!!(s&&s.due<=now);};
+const dangerOpen=st=>!!(st&&st.danger>0&&!(st.last.correct&&st.last.conf===3));
+const unresolved=st=>!!(st&&(!st.last.correct||dangerOpen(st)));
+function updateSrs(id,a){
+  const s=S.srs[id]||{iv:0,reps:0,lapses:0};let iv;
+  if(!a.correct){s.lapses++;iv=a.conf===3?0:1;}
+  else if(a.conf===1)iv=1;
+  else if(a.conf===2)iv=Math.max(2,Math.round((s.iv||1)*1.8));
+  else iv=Math.max(3,Math.round((s.iv||1)*2.5));
+  iv=Math.min(iv,180);s.iv=iv;s.reps++;s.last=a.ts;s.due=a.ts+(iv===0?10*60*1000:iv*DAY);S.srs[id]=s;
+}
+function nextLabel(id){const s=S.srs[id];if(!s)return'—';const d=(s.due-Date.now())/DAY;return d<1/24?'곧':d<1?Math.round(d*24)+'시간 후':Math.round(d)+'일 후';}
+function calib(atts){return[1,2,3].map(c=>{const a=atts.filter(x=>x.conf===c);return{c,n:a.length,acc:a.length?a.filter(x=>x.correct).length/a.length:null};});}
+function calibTable(cal){
+  const rows=cal.map(r=>`<tr><td>${r.c} · ${CONF_KO[r.c]}</td><td class="mono">${r.n}</td><td class="mono">${pct(r.acc)}</td><td><div class="bar"><i style="width:${r.acc==null?0:Math.round(r.acc*100)}%"></i></div></td></tr>`).join('');
+  const c1=cal[0],c3=cal[2];let note='';
+  if(c3.n>=5&&c3.acc<0.9)note+=`<div class="warn">확신 과잉: '확실'이라고 답한 문항의 정답률이 ${pct(c3.acc)}입니다. 이 간극이 실전에서 가장 비싼 착각입니다.</div>`;
+  if(c1.n>=5&&c1.acc>0.6)note+=`<div class="mut">과소 확신: '찍음'의 정답률이 ${pct(c1.acc)}입니다. 알고 있는데 스스로 믿지 못하는 영역입니다.</div>`;
+  if(!note&&cal.some(r=>r.n<5))note='<div class="mut">확신도별 5회 이상 쌓이면 해석이 표시됩니다. 이상적인 모습: 확실 ≥ 90%, 찍음 ≈ 20–30%.</div>';
+  return `<div class="tblwrap"><table class="tbl"><tr><th>확신도</th><th>시도</th><th>정답률</th><th></th></tr>${rows}</table></div>${note}`;
+}
+function misTally(atts){
+  const t={};
+  for(const a of atts){if(a.correct||a.skipped)continue;const it=S.bank[a.qid];if(!it)continue;
+    const oa=(it.option_analysis||{})[a.choice]||{};const tag=oa.misconception||(it.misconception_tags||[])[0]||'(태그 없음)';
+    const e=t[tag]||(t[tag]={tag,n:0,d:0,topics:new Set()});e.n++;if(a.conf===3)e.d++;if(it.topic)e.topics.add(it.topic);}
+  return Object.values(t).sort((x,y)=>(y.n+y.d)-(x.n+x.d));
+}
+
+/* ============ Gemini 패킷 ============ */
+function weaknessPacket(atts,onlyUnresolved){
+  const sm=statsMap();const by={};
+  for(const a of atts){if(a.skipped||a.correct)continue;const e=by[a.qid]||(by[a.qid]={w:0,d:0,ch:new Set(),lastConf:a.conf});e.w++;if(a.conf===3)e.d++;e.ch.add(a.choice);e.lastConf=a.conf;}
+  const rows=Object.entries(by).filter(([q])=>S.bank[q]&&(!onlyUnresolved||unresolved(sm[q]))).map(([qid,e])=>{
+    const it=S.bank[qid];const ch=[...e.ch];
+    return{qid,subject:it.subject,system:it.system,topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
+      answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>((it.option_analysis||{})[c]||{}).misconception).filter(Boolean),
+      wrong_count:e.w,dangerous_count:e.d,last_confidence:e.lastConf,takeaway:it.takeaway,misconception_tags:it.misconception_tags||[]};
+  }).sort((a,b)=>(b.dangerous_count*2+b.wrong_count)-(a.dangerous_count*2+a.wrong_count)).slice(0,30);
+  if(!rows.length){toast('아직 오답 기록이 없습니다','err');return null;}
+  const packet={generated_at:dstr(Date.now()),note:'dangerous_count = 확신도 3으로 틀린 횟수. 최우선 공략 대상.',existing_misconception_tags:allTags(),wrong_log:rows};
+  return '/weakness\n```json\n'+JSON.stringify(packet,null,1)+'\n```';
+}
+function coveragePacket(){
+  const g={};for(const it of Object.values(S.bank)){const k=[it.subject,it.system,it.topic].filter(Boolean).join(' > ')||'미분류';(g[k]=g[k]||[]).push(it.learning_objective||norm(it.stem).slice(0,50));}
+  return '/coverage\n```json\n'+JSON.stringify({existing_objectives:g,existing_misconception_tags:allTags()},null,1)+'\n```';
+}
+function auditPacket(){
+  const items=Object.keys(S.flags).filter(id=>S.bank[id]).map(id=>Object.assign(strip(S.bank[id]),{user_flag:S.flags[id].reason||''}));
+  if(!items.length){toast('신고된 문항이 없습니다','err');return null;}
+  return '/audit\n아래는 사용자가 오류 신고한 문항이다(user_flag = 신고 사유). 각 문항의 "id"를 그대로 유지한 채, 수정본을 같은 스키마의 {"items":[...]} JSON으로 출력하고 audit_report를 batch_meta.notes에 요약하라. user_flag 필드는 출력에서 제거하라.\n```json\n'+JSON.stringify({items},null,1)+'\n```';
+}
+function genRequest(){
+  const f=$('#rfocus').value.trim(),n=$('#rn').value||10,lv=$('#rlv').value,fl=f.toLowerCase();
+  const objs=Object.values(S.bank).filter(it=>!fl||[it.topic,it.system,it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl)).map(it=>it.learning_objective).filter(Boolean);
+  let t=`/generate n=${n} level=${lv}${f?` focus="${f}"`:''}`;
+  if(objs.length)t+=`\n\nexisting_objectives (이미 출제됨 — 중복 금지):\n`+JSON.stringify(objs,null,1);
+  const tags=allTags();if(tags.length)t+=`\n\nexisting_misconception_tags (가능하면 재사용):\n`+JSON.stringify(tags);
+  copy(t);
+}
+function sessionAtts(){return Object.values(session.ans).filter(a=>!a.skipped);}
+function sessionMD(){
+  const rows=session.ids.map(id=>({id,it:S.bank[id],a:session.ans[id]})).filter(r=>r.it);
+  const ans=rows.filter(r=>r.a&&!r.a.skipped),c=ans.filter(r=>r.a.correct).length,dn=ans.filter(r=>!r.a.correct&&r.a.conf===3).length;
+  let md=`# KMLE QBank 세션 ${dstr(session.t0)}\n\n- 정답 ${c}/${ans.length}${ans.length?` (${pct(c/ans.length)})`:''}\n- 치명적 착각 ${dn}개\n\n`;
+  for(const{id,it,a}of rows){
+    const st=!a?'⬜ 미응답':a.skipped?'⏭ 건너뜀':a.correct?'✅':'❌';
+    md+=`## ${st} ${it.topic||''} — ${id}\n`;
+    if(a&&!a.skipped&&!a.correct&&a.conf===3)md+=`> [!danger] 치명적 착각 — 확신도 3으로 틀림\n\n`;
+    if(it.learning_objective)md+=`- **LO**: ${it.learning_objective}\n`;
+    if(it.takeaway)md+=`- **Takeaway**: ${it.takeaway}\n`;
+    const ch=chainOf(it);if(ch.length)md+=`- **Causal chain**: ${ch.join(' → ')}\n`;
+    if(a&&!a.skipped&&!a.correct){const o=(it.option_analysis||{})[a.choice]||{};md+=`- **내 선택 ${a.choice}**: ${optText(it,a.choice)}${o.trap?` — 함정: ${o.trap}`:''}\n`;}
+    md+=`- **정답 ${it.answer}**: ${optText(it,it.answer)}\n`;
+    const tags=it.misconception_tags||[];if(tags.length)md+=`- tags: ${tags.map(t=>'#mis/'+String(t).replace(/\s+/g,'_')).join(' ')}\n`;
+    md+='\n';
+  }
+  return md;
+}
+
+/* ============ 렌더링 공통 ============ */
+function badges(it){
+  const b=[];if(it.subject)b.push(esc([it.subject,it.system].filter(Boolean).join('·')));
+  if(it.topic)b.push(esc(it.topic));
+  let h=b.map(x=>`<span class="bdg">${x}</span>`).join('');
+  if(it.difficulty)h+=`<span class="bdg">Lv${it.difficulty}</span>`;
+  if(it.question_type)h+=`<span class="bdg">${esc(TYPE_KO[it.question_type]||it.question_type)}</span>`;
+  if(it.needs_review)h+=`<span class="bdg warn">검토 필요</span>`;
+  return h;
+}
+function qBody(it,{interactive,choice}){
+  const labs=Array.isArray(it.labs)&&it.labs.length?`<div class="tblwrap"><table class="tbl"><tr><th>검사</th><th>결과</th><th>참고치</th></tr>${it.labs.map(l=>`<tr><td>${esc(l.name)}</td><td class="mono">${esc(l.value)} ${esc(l.unit||'')}</td><td class="mut mono">${esc(l.ref||'')}</td></tr>`).join('')}</table></div>`:'';
+  const findings=it.findings_text?`<div class="findings">${fmt(it.findings_text)}</div>`:'';
+  const opts=(it.options||[]).map(o=>{
+    let cls='opt';
+    if(interactive){if(choice===o.label)cls+=' sel';}
+    else{if(o.label===it.answer)cls+=' ok';else if(o.label===choice)cls+=' bad';else cls+=' dim';}
+    return `<button class="${cls}" ${interactive?`data-act="choose" data-l="${o.label}"`:'disabled'}><span class="ol">${CIR[o.label]||o.label}</span><span>${fmt(o.text)}</span></button>`;
+  }).join('');
+  return `<div class="stem">${fmt(it.stem)}</div>${labs}${findings}<div class="qq">${fmt(it.question||'가장 적절한 것은?')}</div><div class="opts">${opts}</div>`;
+}
+function explanation(it,choice){
+  const chain=chainOf(it),oa=it.option_analysis||{},P=[];
+  if(it.takeaway)P.push(`<div class="takeaway"><span class="k">TAKEAWAY</span>${fmt(it.takeaway)}</div>`);
+  if(it.learning_objective)P.push(`<div class="lo"><span class="mut">Learning objective · </span>${fmt(it.learning_objective)}</div>`);
+  if(chain.length)P.push(`<h4>CAUSAL CHAIN</h4><ol class="chain">${chain.map(s=>`<li>${fmt(s)}</li>`).join('')}</ol>`);
+  P.push(`<h4>선지 전수 해부</h4>`);
+  const known=['verdict','misconception','mechanism','why_best','trap','correct_when'];
+  for(const o of(it.options||[])){
+    const x=oa[o.label]||{},isAns=o.label===it.answer,mine=o.label===choice,R=[];
+    if(!isAns&&x.misconception)R.push(['오개념',`<code>${esc(x.misconception)}</code>`]);
+    if(x.mechanism)R.push(['기전',fmt(x.mechanism)]);
+    if(isAns&&x.why_best)R.push(['최선인 이유',fmt(x.why_best)]);
+    if(!isAns&&x.trap)R.push(['함정',fmt(x.trap)]);
+    if(x.correct_when)R.push([isAns?'정답 조건':'정답이 되려면',fmt(x.correct_when)]);
+    for(const[k,v]of Object.entries(x))if(!known.includes(k)&&v)R.push([esc(k),fmt(typeof v==='string'?v:JSON.stringify(v))]);
+    if(!R.length)R.push(['','<span class="warn">해설 누락 — 🚩 신고 후 /audit 권장</span>']);
+    P.push(`<div class="oa${isAns?' ans':''}${mine&&!isAns?' mine':''}"><div class="oah"><span class="ol">${CIR[o.label]||o.label}</span><span class="oat">${fmt(o.text)}</span>${isAns?'<span class="bdg ok">정답</span>':''}${mine?'<span class="bdg me">내 선택</span>':''}</div><dl>${R.map(r=>`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('')}</dl></div>`);
+  }
+  const imgs=it.image_search_keywords||[];
+  if(imgs.length)P.push(`<h4>🔍 사진·영상으로 확인하기</h4><div class="chips">${imgs.map(k=>`<a class="chip link" target="_blank" rel="noopener" href="https://www.google.com/search?tbm=isch&q=${encodeURIComponent(k)}">${esc(k)} ↗</a>`).join('')}</div>`);
+  const M=[];
+  if((it.misconception_tags||[]).length)M.push(`<div><span class="mut">오개념 태그 </span>${it.misconception_tags.map(t=>`<code>${esc(t)}</code>`).join(' ')}</div>`);
+  if((it.related_concepts||[]).length)M.push(`<div><span class="mut">연관 개념 </span>${it.related_concepts.map(esc).join(' · ')}</div>`);
+  if(it.kmle_link)M.push(`<div><span class="mut">기출 연결 </span>${fmt(it.kmle_link)}</div>`);
+  if((it.source_refs||[]).length)M.push(`<div><span class="mut">근거 </span>${it.source_refs.map(r=>esc(typeof r==='string'?r:[r.file,r.section].filter(Boolean).join(' › '))).join(' / ')}</div>`);
+  if((it.outside_source_claims||[]).length)M.push(`<div class="warn">⚠ md 밖 주장: ${it.outside_source_claims.map(c=>esc(typeof c==='string'?c:JSON.stringify(c))).join(' / ')}</div>`);
+  if(it.needs_review||(it.generator_confidence&&it.generator_confidence!=='high'))M.push(`<div class="warn">⚠ 생성기 확신도 ${esc(it.generator_confidence||'?')} — 정답을 교과서로 한 번 더 확인하세요.</div>`);
+  if(S.flags[it.id])M.push(`<div class="bad-t">🚩 오류 신고됨: ${esc(S.flags[it.id].reason||'')}</div>`);
+  M.push(`<div class="mut mono">${esc(it.id)}${it._source?' · '+esc(it._source):''}</div>`);
+  P.push(`<div class="meta">${M.join('')}</div>`);
+  return `<div class="exp">${P.join('')}</div>`;
+}
+function emptyState(){return `<div class="card empty"><h2>QBank가 비어 있습니다</h2><p class="mut">Gemini로 만든 문항 JSON을 넣으면 여기에 계속 쌓입니다.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-act="go" data-r="add">문항 추가하러 가기 →</button></div></div>`;}
+
+/* ============ 뷰: 대시보드 ============ */
+function vDash(){
+  const items=Object.values(S.bank);if(!items.length)return emptyState();
+  const sm=statsMap(),now=Date.now();
+  const attempted=items.filter(i=>sm[i.id]).length,tot=S.attempts.length,cor=S.attempts.filter(a=>a.correct).length;
+  const due=items.filter(i=>isDue(i.id,now)).length,dangerN=items.filter(i=>dangerOpen(sm[i.id])).length;
+  const flagN=Object.keys(S.flags).filter(id=>S.bank[id]).length,today=S.attempts.filter(a=>dstr(a.ts)===dstr(now)).length;
+  const stat=(n,l)=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  let h=`<div class="card"><h2>대시보드</h2><div class="grid">${stat(items.length,'총 문항')}${stat(attempted,'풀어본 문항')}${stat(tot?pct(cor/tot):'—','누적 정답률')}${stat(due,'복습 대기')}${stat(dangerN,'미해결 치명적 착각')}${stat(today,'오늘 푼 횟수')}</div>
+  <div class="actions"><button class="btn pri" data-act="quick" data-mode="smart">스마트 세션 20문항</button>${dangerN?`<button class="btn dangerb" data-act="quick" data-mode="danger">⚠️ 치명적 착각 재공격 (${dangerN})</button>`:''}${due?`<button class="btn" data-act="quick" data-mode="due">복습만 (${due})</button>`:''}</div></div>`;
+  h+=`<div class="card"><h2>확신도 보정 (Calibration)</h2>${calibTable(calib(S.attempts))}</div>`;
+  const bySub={};
+  for(const it of items){const s=it.subject||'미분류';const e=bySub[s]||(bySub[s]={n:0,att:0,c:0,t:0});e.n++;if(sm[it.id])e.att++;}
+  for(const a of S.attempts){const it=S.bank[a.qid];if(!it)continue;const e=bySub[it.subject||'미분류'];if(!e)continue;e.t++;if(a.correct)e.c++;}
+  h+=`<div class="card"><h2>과목별</h2><div class="tblwrap"><table class="tbl"><tr><th>과목</th><th>문항</th><th>풀어봄</th><th>정답률</th><th></th></tr>${Object.entries(bySub).sort((a,b)=>b[1].n-a[1].n).map(([s,e])=>`<tr><td>${esc(s)}</td><td class="mono">${e.n}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`).join('')}</table></div></div>`;
+  const mt=misTally(S.attempts).slice(0,10);
+  if(mt.length)h+=`<div class="card"><h2>나를 가장 많이 넘어뜨린 오개념</h2><div class="tblwrap"><table class="tbl"><tr><th>오개념 태그</th><th>오답</th><th>치명적</th><th>주제</th></tr>${mt.map(m=>`<tr><td><code>${esc(m.tag)}</code></td><td class="mono">${m.n}</td><td class="mono ${m.d?'bad-t':''}">${m.d}</td><td class="mut">${esc([...m.topics].slice(0,3).join(', '))}</td></tr>`).join('')}</table></div></div>`;
+  h+=`<div class="card"><h2>Gemini 루프</h2><p class="mut">버튼을 누르면 Gemini에 바로 붙여넣을 수 있는 요청문이 복사됩니다.</p><div class="actions"><button class="btn" data-act="copyWeak">/weakness 패킷 복사</button><button class="btn" data-act="copyCoverage">/coverage 패킷 복사</button>${flagN?`<button class="btn" data-act="copyAudit">🚩 신고 문항 /audit 패킷 (${flagN})</button>`:''}</div></div>`;
+  const rec=S.meta.batches.slice(-8).reverse().filter(b=>(b.metas||[]).some(m=>(m.conflicts||[]).length||(m.coverage_gaps||[]).length));
+  if(rec.length)h+=`<div class="card"><h2>Gemini가 보고한 근거 충돌·공백</h2>${rec.map(b=>`<div class="mut mono" style="margin-top:8px">${dstr(b.ts)} · ${esc(b.source)}</div>${b.metas.map(m=>`${(m.conflicts||[]).length?`<div class="warn">충돌: ${esc(JSON.stringify(m.conflicts))}</div>`:''}${(m.coverage_gaps||[]).length?`<div class="mut">공백: ${esc(JSON.stringify(m.coverage_gaps))}</div>`:''}`).join('')}`).join('')}</div>`;
+  return h;
+}
+
+/* ============ 뷰: 문제 풀기 ============ */
+function pool(){
+  const sm=statsMap(),now=Date.now(),kw=setup.kw.trim().toLowerCase();
+  let ids=Object.values(S.bank).filter(it=>{
+    if(setup.subjects.length&&!setup.subjects.includes(it.subject||'미분류'))return false;
+    const d=it.difficulty;if(d!=null&&((setup.dmin&&d<setup.dmin)||(setup.dmax&&d>setup.dmax)))return false;
+    if(setup.exFlag&&S.flags[it.id])return false;
+    if(kw){const hay=[it.topic,it.system,it.subject,it.learning_objective,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(kw))return false;}
+    return true;
+  }).map(it=>it.id);
+  const st=id=>sm[id],byDue=(a,b)=>S.srs[a].due-S.srs[b].due;
+  switch(setup.mode){
+    case 'new':ids=shuffle(ids.filter(id=>!st(id)));break;
+    case 'due':ids=ids.filter(id=>isDue(id,now)).sort(byDue);break;
+    case 'wrong':ids=shuffle(ids.filter(id=>st(id)&&!st(id).last.correct));break;
+    case 'danger':ids=shuffle(ids.filter(id=>dangerOpen(st(id))));break;
+    case 'random':ids=shuffle(ids);break;
+    default:{const due=ids.filter(id=>isDue(id,now)).sort(byDue),nw=shuffle(ids.filter(id=>!st(id))),rest=shuffle(ids.filter(id=>st(id)&&!isDue(id,now)));ids=[...due,...nw,...rest];}
+  }
+  return ids;
+}
+function updatePool(){const el=$('#poolInfo');if(!el)return;const n=pool().length;el.textContent=`조건에 맞는 문항 ${n}개 → 이번 세션 ${Math.min(n,setup.n||0)}문항`;}
+function vSetup(){
+  const items=Object.values(S.bank);if(!items.length)return emptyState();
+  const subs=[...new Set(items.map(i=>i.subject||'미분류'))].sort();
+  const modes=[['smart','스마트: 복습 대기 → 새 문제 → 나머지'],['new','새 문제만'],['due','복습 대기만'],['wrong','최근 틀린 문제'],['danger','치명적 착각만'],['random','전체 랜덤']];
+  return `<div class="card"><h2>문제 풀기</h2>
+  <h3>과목 (선택하지 않으면 전체)</h3><div class="chips">${subs.map(s=>`<label class="chip"><input type="checkbox" data-set="subj" value="${esc(s)}"${setup.subjects.includes(s)?' checked':''}>${esc(s)}</label>`).join('')}</div>
+  <div class="row">
+   <label class="field">출제 방식<select data-set="mode">${modes.map(([v,l])=>`<option value="${v}"${setup.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>
+   <label class="field">문항 수<input type="number" min="1" max="300" data-set="n" value="${setup.n}" style="width:90px"></label>
+   <label class="field">난이도 최소<input type="number" min="1" max="10" data-set="dmin" value="${setup.dmin}" style="width:80px"></label>
+   <label class="field">최대<input type="number" min="1" max="10" data-set="dmax" value="${setup.dmax}" style="width:80px"></label>
+  </div>
+  <div class="row"><label class="field" style="flex:1">키워드 (주제·LO·오개념 태그)<input type="text" data-set="kw" value="${esc(setup.kw)}" placeholder="예: 대동맥판, hyponatremia"></label></div>
+  <label class="chip"><input type="checkbox" data-set="exFlag"${setup.exFlag?' checked':''}>🚩 오류 신고된 문항 제외</label>
+  <div class="mut" id="poolInfo" style="margin-top:14px"></div>
+  <div class="actions"><button class="btn pri" data-act="start">세션 시작</button></div></div>`;
+}
+function resultBanner(it,a){
+  if(a.skipped)return `<div class="banner info">⏭ 건너뛴 문항 — 정답은 ${CIR[it.answer]||it.answer}입니다. 기록에는 남기지 않았습니다.</div>`;
+  if(a.correct){
+    if(a.conf===1)return `<div class="banner luck">🎲 정답 — 하지만 확신도 1(찍음)이었습니다. 운을 실력으로 바꾸려면 해설을 끝까지 보세요. 내일 다시 나옵니다.</div>`;
+    return `<div class="banner ok">✅ 정답 · 확신도 ${a.conf} · ${Math.round((a.ms||0)/1000)}초 · 다음 복습 ${nextLabel(it.id)}</div>`;
+  }
+  if(a.conf===3)return `<div class="banner danger"><b>⚠️ 치명적 착각 (Dangerous Misconception)</b><br>확실하다고 믿고 틀렸습니다. 내가 고른 선지의 '함정' 항목이 지금 머릿속에 있는 잘못된 인과 고리입니다. 10분 뒤 복습 대기열에 다시 올라갑니다.</div>`;
+  return `<div class="banner bad">❌ 오답 · 내 선택 ${CIR[a.choice]||a.choice} · 정답 ${CIR[it.answer]||it.answer} · 확신도 ${a.conf} · 내일 다시 나옵니다</div>`;
+}
+function vQuestion(){
+  const id=session.ids[session.i],it=S.bank[id];
+  if(!it)return `<div class="card">삭제된 문항입니다. <button class="btn" data-act="next">다음</button></div>`;
+  const a=session.ans[id],revealed=!!a;
+  let h=`<div class="card"><div class="qhead"><span class="mono">${session.i+1} / ${session.ids.length}</span>${badges(it)}<button class="btn ghost sm end" data-act="endSession">세션 종료</button></div>`;
+  h+=qBody(it,{interactive:!revealed,choice:revealed?a.choice:session.choice});
+  if(!revealed){
+    h+=`<div class="conf"><span class="mut">확신도</span><div class="seg">${[1,2,3].map(c=>`<button data-act="conf" data-c="${c}" class="${session.conf===c?'on':''}">${c} · ${CONF_KO[c]}</button>`).join('')}</div></div>
+    <div class="actions"><button class="btn pri" data-act="submit"${session.choice&&session.conf?'':' disabled'}>제출 ⏎</button><button class="btn ghost" data-act="skip">건너뛰기</button><button class="btn ghost" data-act="peek">답 없이 해설 보기</button></div>
+    <div class="hint mut">단축키: A–E 선지 · 1–3 확신도 · Enter 제출/다음</div>`;
+  }else{
+    h+=resultBanner(it,a)+explanation(it,a.choice);
+    h+=`<div class="actions sticky"><button class="btn pri" data-act="next">${session.i+1<session.ids.length?'다음 문제 ⏎':'결과 보기 ⏎'}</button><button class="btn ghost" data-act="flag" data-id="${esc(id)}">${S.flags[id]?'🚩 신고 해제':'🚩 오류 신고'}</button></div>`;
+  }
+  return h+'</div>';
+}
+function vSummary(){
+  const rows=session.ids.map(id=>({id,it:S.bank[id],a:session.ans[id]})).filter(r=>r.it);
+  const ans=rows.filter(r=>r.a&&!r.a.skipped),c=ans.filter(r=>r.a.correct).length;
+  const danger=ans.filter(r=>!r.a.correct&&r.a.conf===3),ms=ans.reduce((s,r)=>s+(r.a.ms||0),0);
+  let h=`<div class="card"><h2>세션 결과</h2><div class="grid">
+   <div class="stat"><div class="n">${c}/${ans.length}</div><div class="l">정답 (${ans.length?pct(c/ans.length):'—'})</div></div>
+   <div class="stat"><div class="n ${danger.length?'bad-t':''}">${danger.length}</div><div class="l">치명적 착각</div></div>
+   <div class="stat"><div class="n">${ans.length?Math.round(ms/ans.length/1000):0}s</div><div class="l">문항당 평균 시간</div></div>
+   <div class="stat"><div class="n">${rows.length-ans.length}</div><div class="l">건너뜀·미응답</div></div></div>
+   <h3>이번 세션 확신도 보정</h3>${calibTable(calib(ans.map(r=>r.a)))}
+   <div class="actions"><button class="btn pri" data-act="copyMD">Obsidian 노트 복사</button><button class="btn" data-act="copyWeakSession">이번 세션 /weakness 복사</button><button class="btn ghost" data-act="newSession">새 세션</button><button class="btn ghost" data-act="go" data-r="dash">대시보드</button></div></div>`;
+  h+=`<div class="card"><h2>전 문항 해설 (미응답 포함)</h2>${rows.map(({id,it,a})=>{
+    const ic=!a?'⬜':a.skipped?'⏭':a.correct?'✅':(a.conf===3?'⚠️':'❌');
+    return `<details class="qd" data-id="${esc(id)}" data-choice="${a&&a.choice?a.choice:''}"><summary><span>${ic}</span><span class="mono mut">${esc(id)}</span><span>${esc(it.topic||'')}</span><span class="mut">${esc(norm(it.learning_objective||it.stem).slice(0,50))}</span>${a&&a.conf?`<span class="bdg">확신도 ${a.conf}</span>`:''}</summary><div class="dbody"></div></details>`;
+  }).join('')}</div>`;
+  return h;
+}
+function vQuiz(){if(!session)return vSetup();if(session.done)return vSummary();return vQuestion();}
+function startSession(ids){
+  ids=ids.filter(id=>S.bank[id]);
+  if(!ids.length){toast('조건에 맞는 문항이 없습니다','err');return;}
+  session={ids,i:0,ans:{},t0:Date.now(),qt:Date.now(),choice:null,conf:null,done:false};go('quiz');
+}
+async function submit(){
+  const id=session.ids[session.i],it=S.bank[id];if(!session.choice||!session.conf)return;
+  const rec={qid:id,ts:Date.now(),choice:session.choice,conf:session.conf,correct:session.choice===it.answer,ms:Date.now()-session.qt};
+  S.attempts.push(rec);updateSrs(id,rec);session.ans[id]=rec;render();await save('attempts','srs');
+}
+function skip(reveal){const id=session.ids[session.i];session.ans[id]={qid:id,skipped:true,choice:null};if(reveal)render();else next();}
+function next(){session.i++;session.choice=null;session.conf=null;session.qt=Date.now();if(session.i>=session.ids.length)session.done=true;render();window.scrollTo(0,0);}
+
+/* ============ 뷰: 문항 추가 ============ */
+function vAdd(){
+  return `<div class="card"><h2>문항 추가</h2><p class="mut">Gemini가 출력한 JSON을 그대로 붙여넣으세요. \`\`\`json 코드블록이 섞여 있어도, 여러 배치를 한 번에 붙여도 됩니다. /audit 수정본(같은 id)은 기존 문항을 덮어씁니다.</p>
+  <textarea id="paste" rows="12" placeholder='{"schema_version":"2.0","batch_meta":{...},"items":[...]}'></textarea>
+  <div class="actions"><button class="btn pri" data-act="ingestPaste">붙여넣은 JSON 추가</button><label class="btn ghost">파일에서 추가 (.json)<input type="file" id="files" accept=".json,application/json,text/plain" multiple hidden></label></div>
+  <div id="report"></div></div>
+  <div class="card"><h2>Gemini 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다.</p>
+  <div class="row"><label class="field" style="flex:1">주제 (focus)<input type="text" id="rfocus" placeholder="예: 저나트륨혈증"></label>
+  <label class="field">문항 수<input type="number" id="rn" value="10" min="1" max="10" style="width:80px"></label>
+  <label class="field">난이도<select id="rlv"><option value="mixed">mixed (기본 배분)</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select></label></div>
+  <div class="actions"><button class="btn" data-act="genReq">/generate 요청문 복사</button><button class="btn ghost" data-act="copyCoverage">/coverage 패킷 복사</button><button class="btn ghost" data-act="copyWeak">/weakness 패킷 복사</button></div></div>`;
+}
+
+/* ============ 뷰: 문항 목록 ============ */
+function lastChoice(id){let c=null;for(const a of S.attempts)if(a.qid===id)c=a.correct?null:a.choice;return c;}
+function browseList(){
+  const sm=statsMap(),q=browse.q.trim().toLowerCase();
+  let list=Object.values(S.bank).filter(it=>{
+    if(browse.subj&&(it.subject||'미분류')!==browse.subj)return false;
+    const st=sm[it.id];
+    switch(browse.status){
+      case 'new':if(st)return false;break;
+      case 'wrong':if(!st||st.last.correct)return false;break;
+      case 'danger':if(!dangerOpen(st))return false;break;
+      case 'flag':if(!S.flags[it.id])return false;break;
+      case 'review':if(!(it.needs_review||(it.generator_confidence&&it.generator_confidence!=='high')))return false;break;
+    }
+    if(q){const hay=[it.id,it.topic,it.system,it.subject,it.learning_objective,it.stem,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(q))return false;}
+    return true;
+  }).sort((a,b)=>(b._added||0)-(a._added||0));
+  const total=list.length;list=list.slice(0,browse.limit);
+  const rows=list.map(it=>{const st=sm[it.id],ic=!st?'○':dangerOpen(st)?'⚠️':st.last.correct?'✅':'❌';
+    return `<details class="qd" data-id="${esc(it.id)}" data-ctx="browse"><summary><span>${ic}</span><span class="mono mut">${esc(it.id)}</span><span>${esc(it.topic||'')}</span><span class="mut">${esc(norm(it.learning_objective||it.stem).slice(0,55))}</span><span class="bdg">${st?`${st.c}/${st.n}`:'미풀이'}</span>${it.difficulty?`<span class="bdg">Lv${it.difficulty}</span>`:''}${S.flags[it.id]?'<span class="bdg warn">🚩</span>':''}</summary><div class="dbody"></div></details>`;}).join('');
+  return `<div class="mut" style="margin-bottom:8px">${total}개 중 ${list.length}개 표시 · 펼치면 정답과 전 선지 해설이 보입니다</div>${rows||'<div class="mut">해당 문항 없음</div>'}${total>list.length?'<button class="btn ghost" data-act="more">더 보기</button>':''}`;
+}
+function vBrowse(){
+  if(!Object.keys(S.bank).length)return emptyState();
+  const subs=[...new Set(Object.values(S.bank).map(i=>i.subject||'미분류'))].sort();
+  const sts=[['all','전체'],['new','미풀이'],['wrong','최근 오답'],['danger','치명적 착각'],['flag','🚩 신고됨'],['review','검토 필요']];
+  return `<div class="card"><h2>문항 목록</h2><div class="row">
+  <input type="text" data-b="q" value="${esc(browse.q)}" placeholder="검색: 주제·LO·본문·태그·ID" style="flex:1;min-width:200px">
+  <select data-b="subj"><option value="">전체 과목</option>${subs.map(s=>`<option${browse.subj===s?' selected':''}>${esc(s)}</option>`).join('')}</select>
+  <select data-b="status">${sts.map(([v,l])=>`<option value="${v}"${browse.status===v?' selected':''}>${l}</option>`).join('')}</select></div>
+  <div id="blist">${browseList()}</div></div>`;
+}
+function detailBody(it,choice,ctx){
+  let h=`<div class="qhead">${badges(it)}</div>`+qBody(it,{interactive:false,choice})+explanation(it,choice);
+  if(ctx==='browse')h+=`<div class="actions"><button class="btn sm" data-act="solo" data-id="${esc(it.id)}">이 문항 풀기</button><button class="btn ghost sm" data-act="flag" data-id="${esc(it.id)}">${S.flags[it.id]?'🚩 신고 해제':'🚩 오류 신고'}</button><button class="btn dangerb sm" data-act="del" data-id="${esc(it.id)}">삭제</button></div>`;
+  return h;
+}
+
+/* ============ 뷰: 백업·동기화 ============ */
+function vBackup(){
+  return `<div class="card"><h2>전체 백업</h2><p class="mut">문항 + 풀이 기록 + 복습 일정 + 신고를 하나의 파일로 저장합니다. 브라우저 데이터는 캐시 삭제·기기 변경 시 사라질 수 있으니 <b>주 1회</b> 받아서 Google Drive 등에 보관하세요. 다른 기기로 옮길 때도 이 파일을 가져오기 하면 됩니다.</p>
+  <div class="actions"><button class="btn pri" data-act="exportBackup">전체 백업 내보내기</button><label class="btn">백업 가져오기 (병합)<input type="file" id="bfile" accept=".json,application/json" hidden></label></div>
+  <div class="mut" id="est" style="margin-top:10px"></div></div>
+  <div class="card"><h2>GitHub 저장소로 문항 동기화</h2><p class="mut"><b>bank.json</b>을 내보내 GitHub 저장소 최상위에 올리면, 어느 기기에서 사이트를 열든 문항이 자동으로 합쳐집니다. (풀이 기록은 올라가지 않습니다 — 기록 이동은 위의 전체 백업을 쓰세요.) 공개 저장소라면 bank.json도 공개된다는 점을 기억하세요.</p>
+  <div class="actions"><button class="btn" data-act="exportBank">bank.json 내보내기</button></div></div>
+  <div class="card"><h2>초기화</h2><p class="mut">이 기기의 모든 문항과 기록을 지웁니다. 되돌릴 수 없습니다.</p><div class="actions"><button class="btn dangerb" data-act="reset">모두 삭제</button></div></div>`;
+}
+function mergeBackup(b){
+  let items=0,atts=0;
+  for(const it of Object.values(b.bank||{}))if(it&&it.id&&!S.bank[it.id]){S.bank[it.id]=it;items++;}
+  const seen=new Set(S.attempts.map(a=>a.qid+'|'+a.ts));
+  for(const a of(b.attempts||[])){const k=a.qid+'|'+a.ts;if(!seen.has(k)){S.attempts.push(a);seen.add(k);atts++;}}
+  S.attempts.sort((x,y)=>x.ts-y.ts);
+  for(const[k,v]of Object.entries(b.srs||{}))if(!S.srs[k]||(v.last||0)>(S.srs[k].last||0))S.srs[k]=v;
+  Object.assign(S.flags,b.flags||{});
+  if(b.meta&&Array.isArray(b.meta.batches)){const ids=new Set(S.meta.batches.map(x=>x.id));for(const x of b.meta.batches)if(!ids.has(x.id))S.meta.batches.push(x);}
+  return{items,atts};
+}
+async function delItem(id){
+  if(!confirm('이 문항을 삭제할까요? 풀이 기록도 함께 지워집니다.'))return;
+  delete S.bank[id];delete S.srs[id];delete S.flags[id];S.attempts=S.attempts.filter(a=>a.qid!==id);
+  if(!S.meta.deleted.includes(id))S.meta.deleted.push(id);
+  await saveAll();toast('삭제됨');refreshList();
+}
+async function toggleFlag(id){
+  if(S.flags[id])delete S.flags[id];
+  else{const r=prompt('어떤 오류인가요? (예: 정답 오류, 두 개가 정답, 수치 오류, 해설 누락)');if(r===null)return;S.flags[id]={reason:r,ts:Date.now()};}
+  await save('flags');toast(S.flags[id]?'신고됨 — 대시보드에서 /audit 패킷으로 보내세요':'신고 해제');refreshList();
+}
+function refreshList(){if(route==='browse'&&$('#blist'))$('#blist').innerHTML=browseList();else render();}
+
+/* ============ 라우팅 & 이벤트 ============ */
+function go(r){route=r;if(location.hash!=='#'+r)location.hash=r;render();window.scrollTo(0,0);}
+window.addEventListener('hashchange',()=>{const r=location.hash.slice(1)||'dash';if(r!==route){route=r;render();window.scrollTo(0,0);}});
+function render(){
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.r===route));
+  const v={dash:vDash,quiz:vQuiz,add:vAdd,browse:vBrowse,backup:vBackup}[route]||vDash;
+  app.innerHTML=v();
+  if(route==='quiz'&&!session)updatePool();
+  if(route==='backup'&&navigator.storage&&navigator.storage.estimate)navigator.storage.estimate().then(e=>{const el=$('#est');if(el)el.textContent=`문항 ${Object.keys(S.bank).length}개 · 풀이 기록 ${S.attempts.length}회 · 사용 중 저장공간 약 ${(e.usage/1048576).toFixed(1)}MB`;}).catch(()=>{});
+}
+app.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act,id=b.dataset.id;
+  switch(act){
+    case 'go':go(b.dataset.r);break;
+    case 'choose':session.choice=b.dataset.l;render();break;
+    case 'conf':session.conf=+b.dataset.c;render();break;
+    case 'submit':submit();break;
+    case 'skip':skip(false);break;
+    case 'peek':skip(true);break;
+    case 'next':next();break;
+    case 'endSession':if(confirm('세션을 종료하고 결과를 볼까요? (안 푼 문항도 해설은 볼 수 있습니다)')){session.done=true;render();window.scrollTo(0,0);}break;
+    case 'start':startSession(pool().slice(0,Math.max(1,setup.n||20)));break;
+    case 'quick':setup.mode=b.dataset.mode;startSession(pool().slice(0,20));break;
+    case 'newSession':session=null;render();break;
+    case 'solo':startSession([id]);break;
+    case 'flag':toggleFlag(id);break;
+    case 'del':delItem(id);break;
+    case 'more':browse.limit+=50;$('#blist').innerHTML=browseList();break;
+    case 'copyMD':copy(sessionMD());break;
+    case 'copyWeakSession':copy(weaknessPacket(sessionAtts(),false));break;
+    case 'copyWeak':copy(weaknessPacket(S.attempts,true));break;
+    case 'copyCoverage':copy(coveragePacket());break;
+    case 'copyAudit':copy(auditPacket());break;
+    case 'genReq':genRequest();break;
+    case 'ingestPaste':{
+      const t=$('#paste').value;if(!t.trim()){toast('붙여넣은 내용이 없습니다','err');break;}
+      try{const rep=ingestData(parseInput(t),'paste');await saveAll();$('#report').innerHTML=reportHTML(rep);if(rep.added||rep.updated)$('#paste').value='';}
+      catch(err){$('#report').innerHTML=`<div class="banner bad">${esc(err.message)}</div>`;}
+      break;}
+    case 'exportBackup':download(`kmle-backup-${dstr(Date.now())}.json`,{schema:'kmle-qbank-backup',version:1,exported_at:new Date().toISOString(),bank:S.bank,attempts:S.attempts,srs:S.srs,flags:S.flags,meta:S.meta});break;
+    case 'exportBank':download('bank.json',{schema:'kmle-qbank-bank',version:1,exported_at:new Date().toISOString(),count:Object.keys(S.bank).length,items:Object.values(S.bank).map(strip)});break;
+    case 'reset':if(prompt('정말 모두 지우려면 "삭제"라고 입력하세요. (먼저 백업을 내보내세요)')==='삭제'){S.bank={};S.attempts=[];S.srs={};S.flags={};S.meta={batches:[],deleted:[]};session=null;await saveAll();toast('초기화됨');render();}break;
+  }
+});
+function onSetup(t){
+  const k=t.dataset.set;
+  if(k==='subj')setup.subjects=[...app.querySelectorAll('[data-set=subj]:checked')].map(x=>x.value);
+  else if(k==='exFlag')setup.exFlag=t.checked;
+  else if(k==='n'||k==='dmin'||k==='dmax')setup[k]=Number(t.value)||0;
+  else setup[k]=t.value;
+  updatePool();
+}
+app.addEventListener('input',e=>{const t=e.target;if(t.dataset.set)onSetup(t);if(t.dataset.b){browse[t.dataset.b]=t.value;browse.limit=50;$('#blist').innerHTML=browseList();}});
+app.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.dataset.set){onSetup(t);return;}
+  if(t.dataset.b&&t.tagName==='SELECT'){browse[t.dataset.b]=t.value;browse.limit=50;$('#blist').innerHTML=browseList();return;}
+  if(t.id!=='files'&&t.id!=='bfile')return;
+  const files=[...t.files],parsed=[],errs=[];
+  for(const f of files){
+    try{const txt=await f.text();
+      if(t.id==='bfile'){const d=JSON.parse(txt);if(d.schema==='kmle-qbank-backup'){const r=mergeBackup(d);await saveAll();toast(`백업 병합 완료: 문항 +${r.items}, 풀이 기록 +${r.atts}`);t.value='';render();return;}parsed.push(d);}
+      else parsed.push(...parseInput(txt));
+    }catch(err){errs.push(f.name+': '+err.message);}
+  }
+  t.value='';
+  if(parsed.length){const rep=ingestData(parsed,'file:'+files.map(f=>f.name).join(','));await saveAll();
+    if($('#report'))$('#report').innerHTML=reportHTML(rep)+errs.map(x=>`<div class="bad-t">${esc(x)}</div>`).join('');else{toast(`문항 +${rep.added}`);render();}}
+  else if(errs.length){if($('#report'))$('#report').innerHTML=`<div class="banner bad">${errs.map(esc).join('<br>')}</div>`;else toast(errs[0],'err');}
+});
+app.addEventListener('toggle',e=>{
+  const d=e.target;if(!(d instanceof HTMLDetailsElement)||!d.open)return;
+  const body=d.querySelector('.dbody');if(!body||body.dataset.done)return;const it=S.bank[d.dataset.id];if(!it)return;
+  const choice=d.hasAttribute('data-choice')?(d.dataset.choice||null):lastChoice(it.id);
+  body.innerHTML=detailBody(it,choice,d.dataset.ctx);body.dataset.done='1';
+},true);
+document.addEventListener('keydown',e=>{
+  if(route!=='quiz'||!session||session.done)return;
+  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey)return;
+  const id=session.ids[session.i],it=S.bank[id];if(!it)return;const revealed=!!session.ans[id],k=e.key.toLowerCase();
+  if(!revealed){
+    if(k.length===1&&'abcdef'.includes(k)&&it.options.some(o=>o.label===k.toUpperCase())){session.choice=k.toUpperCase();render();}
+    else if(k==='1'||k==='2'||k==='3'){session.conf=+k;render();}
+    else if(k==='enter'&&session.choice&&session.conf){e.preventDefault();submit();}
+  }else if(k==='enter'){e.preventDefault();next();}
+});
+
+/* ============ 시작 ============ */
+(async()=>{app.innerHTML='<div class="card mut">불러오는 중…</div>';await loadLocal();render();syncRemote();})();
+</script>
+</body>
+</html>

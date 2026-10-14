@@ -576,7 +576,8 @@ function vSetup(){
    <label class="field">최대<input type="number" min="1" max="10" data-set="dmax" value="${setup.dmax}" style="width:80px"></label>
   </div>
   <div class="row"><label class="field" style="flex:1">키워드 (주제·LO·오개념 태그)<input type="text" data-set="kw" value="${esc(setup.kw)}" placeholder="예: 대동맥판, hyponatremia"></label></div>
-  <label class="chip"><input type="checkbox" data-set="exFlag"${setup.exFlag?' checked':''}>🚩 오류 신고된 문항 제외</label>
+  <div class="chips"><label class="chip"><input type="checkbox" data-set="exFlag"${setup.exFlag?' checked':''}>🚩 오류 신고된 문항 제외</label>
+  <label class="chip"><input type="checkbox" data-set="showMeta"${S.meta.showMeta?' checked':''}>풀이 중 주제·분과 표시 (권장: 끔)</label></div>
   <div class="mut" id="poolInfo" style="margin-top:14px"></div>
   <div class="actions"><button class="btn pri" data-act="start">세션 시작</button></div></div>`;
 }
@@ -593,7 +594,9 @@ function vQuestion(){
   const id=session.ids[session.i],it=S.bank[id];
   if(!it)return `<div class="card">삭제된 문항입니다. <button class="btn" data-act="next">다음</button></div>`;
   const a=session.ans[id],revealed=!!a;
-  let h=`<div class="card"><div class="qhead"><span class="mono">${session.i+1} / ${session.ids.length}</span>${badges(it)}<button class="btn ghost sm end" data-act="endSession">세션 종료</button></div>`;
+  // 블라인드 원칙: 풀기 전에는 주제·분과·유형·난이도 등 정답을 암시하는 메타정보를 숨긴다. 제출(또는 해설 보기) 후 공개.
+  const meta=revealed||S.meta.showMeta?badges(it):'<span class="bdg">🙈 블라인드 — 분류는 제출 후 공개</span>';
+  let h=`<div class="card"><div class="qhead"><span class="mono">${session.i+1} / ${session.ids.length}</span>${meta}<button class="btn ghost sm end" data-act="endSession">세션 종료</button></div>`;
   h+=qBody(it,{interactive:!revealed,choice:revealed?a.choice:session.choice});
   if(!revealed){
     h+=`<div class="conf"><span class="mut">확신도</span><div class="seg">${[1,2,3].map(c=>`<button data-act="conf" data-c="${c}" class="${session.conf===c?'on':''}">${c} · ${CONF_KO[c]}</button>`).join('')}</div></div>
@@ -783,6 +786,7 @@ function onSetup(t){
     if(!onSetup._busy){onSetup._busy=true;render();onSetup._busy=false;}return;}
   else if(k==='sys')setup.systems=[...app.querySelectorAll('[data-set=sys]:checked')].map(x=>x.value);
   else if(k==='exFlag')setup.exFlag=t.checked;
+  else if(k==='showMeta'){S.meta.showMeta=t.checked;save('meta');return;}
   else if(k==='n'||k==='dmin'||k==='dmax')setup[k]=Number(t.value)||0;
   else setup[k]=t.value;
   updatePool();

@@ -54,6 +54,19 @@ p{margin:6px 0}
 .tbl tr.sys td:first-child{padding-left:22px}
 .tbl tr.sys td:first-child::before{content:'↳ ';color:var(--mut)}
 .tbl tr.weak td:first-child{color:#fca5a5}
+.tbl tr.st td:first-child{padding-left:46px;font-size:13.5px}
+.tbl tr.st td{font-size:13.5px}
+.tbl tr.zero td{opacity:.42}
+.tbl tr.tog{cursor:pointer}
+.tbl tr.tog:hover td{background:#1b2a40}
+.caret{color:var(--acc);font-size:12px}
+.tbl tr.sys.tog td:first-child::before{content:''}
+.cov{font-size:11.5px;color:var(--mut);margin-left:4px}
+.subgrp{margin:6px 0 10px}
+.subgrp-h{font-size:12.5px;color:var(--acc);margin:4px 0 6px;font-weight:600}
+.chip.zero{opacity:.4;cursor:default}
+.chip.unsure{border-style:dashed}
+.rc{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:10px}
 .cap{font-size:12.5px;margin-top:6px}
 .stem{font-size:16.5px;margin-bottom:12px}
 .qq{font-weight:600;margin:14px 0 10px}
@@ -178,57 +191,267 @@ function chainOf(it){const c=it.causal_chain;if(Array.isArray(c))return c.map(x=
 function optText(it,l){const o=(it.options||[]).find(o=>o.label===l);return o?o.text:'';}
 function allTags(){const s=new Set();for(const it of Object.values(S.bank)){(it.misconception_tags||[]).forEach(t=>s.add(t));Object.values(it.option_analysis||{}).forEach(o=>o&&o.misconception&&s.add(o.misconception));}return [...s].sort();}
 
-/* ============ 분류 체계 (과목 > 분과) — 표기 흔들림을 표준명으로 통일 ============ */
+/* ============ 분류 체계: 과목 › 분과 › 세부 주제 ============ */
+/* 세부 주제 목록은 사용자가 제공한 참고자료(내과 2·3분류)를 그대로 따른다.
+   [추가]로 표시한 항목은 참고자료에 없지만 KMLE 출제 빈도가 높아 보강한 것 — 필요 없으면 지워도 된다.
+   각 항목의 두 번째 값은 기존 문항 자동 분류용 키워드(| 구분). 영문 약어(≤5자)는 단어 경계로만 매칭. */
+const TAX_SRC={'내과':{
+ '순환기':[
+  ['심혈관계 질환','심혈관계질환|심혈관진찰|심음|심잡음|청진|경정맥|jvp|심전도판독|심전도해석|심초음파|심도자'],
+  ['부정맥','부정맥|arrhythmia|심방세동|atrialfibrillation|심방조동|심실빈맥|심실세동|서맥|방실차단|wpw|qt연장|torsades|상심실성빈맥|psvt|svt|동기능부전|브루가다|brugada|심박동기|pacemaker|항부정맥|도자절제|ablation'],
+  ['심부전','심부전|heartfailure|hfref|hfpef|박출률|ejectionfraction|bnp|sacubitril|arni|급성비대상'],
+  ['판막질환','판막|valve|대동맥판|승모판|삼첨판|폐동맥판|stenosis|regurgitation|tavi|tavr|류마티스열|rheumaticfever|승모판탈출'],
+  ['심근질환','심근병증|심근증|cardiomyopathy|비후성심근|확장성심근|제한성심근|심근염|myocarditis|타코츠보|takotsubo|심장아밀로이드'],
+  ['심막질환','심막|심낭|pericard|tamponade|눌림증|압전|교착성|constrictive|쿠스마울|kussmaul'],
+  ['심장종양','심장종양|점액종|myxoma|cardiactumor'],
+  ['감염 심내막염','심내막염|endocarditis|duke|증식물|vegetation'],
+  ['죽상경화증','죽상경화|동맥경화|atherosclero|말초동맥|간헐파행|claudication|발목상완|abi'],
+  ['허혈성 심장질환','협심증|angina|허혈성심|관상동맥질환|cad|운동부하|관상동맥조영|변이형|prinzmetal|미세혈관협심'],
+  ['급성 관상동맥증후군','급성관상동맥|acs|심근경색|myocardialinfarction|stemi|nstemi|불안정협심|트로포닌|troponin|재관류|pci|혈전용해|thrombolysis'],
+  ['심장 응급 질환','심정지|cardiacarrest|심폐소생|cpr|acls|심인성쇼크|cardiogenicshock|급성폐부종'],
+  ['고혈압','고혈압|hypertension|이차성고혈압|고혈압응급|고혈압성위기|백의고혈압|가면고혈압|혈압조절'],
+  ['대동맥질환','대동맥박리|aorticdissection|대동맥류|aneurysm|복부대동맥|aaa|대동맥축착|coarctation']],
+ '호흡기':[
+  ['호흡기계 진찰','호흡기진찰|호흡기계진찰|수포음|천명|wheez|crackle|객혈|hemoptysis|만성기침'],
+  ['폐기능의 장애','폐기능의장애|폐기능장애|환기관류|vq불균형|저산소증기전|단락|shunt|확산장애|aa경사|폐포동맥'],
+  ['폐질환 검사법','폐기능검사|폐활량|spirometry|fev1|fvc|dlco|확산능|메타콜린|methacholine|기관지내시경|bronchoscopy|흉부ct|흉부x선|동맥혈가스|abga'],
+  ['천식','천식|asthma|흡입스테로이드|laba|saba|기관지유발'],
+  ['과민성 폐장염과 호산구 폐렴','과민성폐|과민폐렴|hypersensitivitypneumon|호산구폐렴|eosinophilicpneumon|abpa|알레르기기관지폐아스페르길루스|뢰플러|loeffler|농부폐'],
+  ['폐렴','폐렴|pneumonia|지역사회획득폐렴|병원획득폐렴|인공호흡기관련폐렴|vap|hap|curb65|레지오넬라|legionella|폐렴구균|흡인성폐렴'],
+  ['폐농양','폐농양|lungabscess|공동성병변'],
+  ['기관지 확장증','기관지확장|bronchiectasis|낭성섬유|cysticfibrosis|카타게너|kartagener|섬모운동'],
+  ['폐결핵','결핵|tuberculosis|igra|투베르쿨린|이소니아지드|isoniazid|리팜핀|rifampin|잠복결핵|비결핵항산균|ntm'],
+  ['폐고혈압증','폐고혈압|pulmonaryhypertension|폐동맥고혈압|폐성심|corpulmonale|eisenmenger'],
+  ['만성 폐쇄성 폐질환','만성폐쇄|copd|폐기종|emphysema|만성기관지염|알파1항트립신|α1항트립신'],
+  ['간질성 폐질환','간질성|interstitiallung|특발성폐섬유|폐섬유|pulmonaryfibrosis|ipf|사르코이드|sarcoid|nsip|uip|기질화폐렴'],
+  ['직업성 폐질환','직업성|진폐|pneumoconios|석면|asbestos|규폐|silicos|탄광부|중피종|mesothelioma|베릴륨'],
+  ['폐암','폐암|lungcancer|비소세포|소세포폐암|nsclc|sclc|폐결절|pulmonarynodule|고립성폐결절|판코스트|pancoast'],
+  ['폐색전증','폐색전|pulmonaryembol|심부정맥혈전|deepvein|dvt|wells|ddimer|d-dimer|ctpa'],
+  ['흉막과 종격동 질환','흉막|pleura|흉수|기흉|pneumothorax|농흉|empyema|종격동|mediastin|흉선종|thymoma|유미흉'],
+  ['환기 장애','환기장애|수면무호흡|sleepapnea|osa|비만저환기|저환기|hypoventilation|중추성무호흡|cheyne'],
+  ['급성호흡곤란증후군','급성호흡곤란증후군|acuterespiratorydistress|ards'],
+  ['기계보조환기','기계환기|기계보조환기|인공호흡기|mechanicalventilation|ventilator|peep|이탈|weaning|비침습적환기|niv|bipap|고유량']],
+ '위장관':[
+  ['복부 증상론, 진단학','복부증상|연하곤란|dysphagia|소화불량|dyspepsia|변비|constipation|복부진찰|기능성소화|복통의접근|만성설사의접근'],
+  ['위장관 출혈','위장관출혈|상부위장관출혈|하부위장관출혈|토혈|흑색변|혈변|hematemesis|melena|hematochezia|정맥류출혈|forrest|blatchford'],
+  ['식도질환','식도|esophag|gerd|역류성|바렛|barrett|아칼라지아|achalasia|이완불능|말로리|mallory|zenker|부르하베|boerhaave'],
+  ['위, 십이지장 질환','소화성궤양|pepticulcer|위궤양|십이지장궤양|헬리코박터|helicobacter|pylori|위염|gastritis|졸링거|zollinger|가스트린종|gastrinoma|위마비|gastroparesis'],
+  ['위암','위암|gastriccancer|위선암|조기위암|위림프종|malt|위장관기질종양|gist'],
+  ['흡수장애','흡수장애|malabsorption|셀리악|celiac|유당불내|lactose|단장증후군|shortbowel|휘플병|whipple|세균과증식|sibo|지방변|steatorrhea'],
+  ['염증성 장질환','염증성장질환|ibd|크론|crohn|궤양성대장염|ulcerativecolitis|메살라민|mesalamine|독성거대결장'],
+  ['과민대장증후군','과민대장|과민성장|ibs|irritablebowel|rome'],
+  ['게실 질환','게실|diverticul|멕켈|meckel'],
+  ['혈관 질환','장간막허혈|mesentericischemia|허혈성대장염|ischemiccolitis|장허혈|혈관이형성|angiodysplasia'],
+  ['급성 장폐색','장폐색|ileus|bowelobstruction|장마비|가성장폐색|ogilvie|장중첩|intussuscep|장염전|volvulus'],
+  ['막창자꼬리염','충수|막창자꼬리|appendic|맥버니|mcburney'],
+  ['소장, 결장, 직장암','대장암|결장암|직장암|colorectal|coloncancer|용종|polyp|선종성|adenoma|fap|lynch|린치|가족성선종|카르시노이드|유암종|carcinoid|소장종양']],
+ '간담췌':[
+  ['간질환의 진단적 접근','간질환의진단|간기능검사|간효소|간생검|섬유화스캔|fibroscan'],
+  ['황달과 고빌리루빈혈증','황달|jaundice|빌리루빈|bilirubin|길버트|gilbert|크리글러|crigler|두빈존슨|dubin|로터|rotor'],
+  ['급성 바이러스 간염','급성간염|급성바이러스간염|a형간염|e형간염|hav|hev|전격성간염|급성간부전|acuteliverfailure|fulminant'],
+  ['만성간염','만성간염|b형간염|c형간염|hbv|hcv|hbsag|hbeag|테노포비르|tenofovir|엔테카비르|entecavir|자가면역간염|autoimmunehepatitis|d형간염|윌슨|wilson|혈색소침착|hemochromatosis|지방간|nafld|masld|nash'],
+  ['간농양, 독성간염','간농양|liverabscess|약인성간|dili|독성간염|아세트아미노펜|acetaminophen|알코올간염|알코올성간염|alcoholichepatitis|maddrey'],
+  ['간경변증 및 합병증','간경변|간경화|cirrhosis|복수|ascites|saag|자발세균복막염|sbp|간신증후군|hepatorenal|간성뇌증|hepaticencephalopathy|정맥류|varice|문맥압|portalhypertension|tips|childpugh|meld'],
+  ['간종양','간세포암|간암|hcc|hepatocellular|간종괴|간혈관종|국소결절성|fnh|간선종'],
+  ['담낭·담도 질환','담석|담낭염|cholecyst|cholelith|담관염|cholangitis|총담관|choledoch|charcot|레이놀드|원발경화|psc|원발담즙성|pbc|담낭암|담관암|cholangiocarcinoma|ercp|mrcp'],
+  ['췌장 질환','췌장|pancrea|아밀라아제|amylase|리파아제|lipase|ipmn|가성낭종|pseudocyst']],
+ '신장':[
+  ['수분 및 전해질 대사','수분및전해질대사|체액구획|체액량조절|삼투압조절|항이뇨호르몬의작용|나트륨항상성|칼륨항상성'],
+  ['세관기능장애','세관기능|세뇨관기능|tubular|바터|bartter|기텔만|gitelman|리들|liddle|신세관산증|rta|판코니|fanconi|신성요붕증'],
+  ['수분 및 전해질 대사장애','저나트륨|고나트륨|hyponatremia|hypernatremia|siadh|저칼륨|고칼륨|hypokalemia|hyperkalemia|저마그네슘|저인산|요붕증|diabetesinsipidus|삼투성탈수초|전해질이상|전해질대사장애'],
+  ['산-염기 대사장애','산염기|acidbase|대사성산증|대사성알칼리증|호흡성산증|호흡성알칼리증|음이온차|aniongap|deltadelta|winter|acidosis|alkalosis'],
+  ['콩팥질환의 접근','콩팥질환의접근|소변검사|요검사|urinalysis|단백뇨의접근|혈뇨의접근|사구체여과율|크레아티닌청소율|신생검|요침사'],
+  ['급성콩팥기능상실','급성콩팥|급성신손상|급성신부전|aki|acutekidney|신전성|신후성|급성세관괴사|atn|조영제신병증|조영제유발|횡문근융해|rhabdomyolysis|fena'],
+  ['만성콩팥기능상실/신대체요법','만성콩팥|만성신부전|만성신질환|ckd|chronickidney|투석|dialysis|신이식|kidneytransplant|신성빈혈|요독'],
+  ['콩팥토리 질환','사구체|콩팥토리|glomerul|신증후군|nephroticsyndrome|신염증후군|nephritic|iga신병증|iga신증|막성신|membranous|미세변화|minimalchange|fsgs|급속진행|rpgn|루푸스신염|당뇨병콩팥|당뇨병성신증|굿파스처|goodpasture|연쇄알균감염후|알포트|alport'],
+  ['콩팥세관사이질/혈관 질환','세관사이질|간질성신염|interstitialnephritis|약물유발신염|진통제신병증|신동맥협착|renalartery|신혈관성|섬유근육형성이상|신경색|다낭신|polycystic|adpkd'],
+  ['요로돌','요로결석|요로돌|신결석|요석|nephrolith|urolith|kidneystone|수산칼슘|요산결석|시스틴|cystine|스트루바이트|struvite'],
+  ['요로감염','요로감염|uti|방광염|cystitis|신우신염|pyelonephritis|무증상세균뇨|asymptomaticbacteriuria|전립선염|prostatitis']],
+ '감염':[
+  ['감염성 질환에 관한 기본 고찰','감염성질환에관한기본|항생제선택|항균제선택|항생제내성|내성기전|불명열|fuo|패혈증|sepsis|패혈성쇼크|septicshock|qsofa|sofa'],
+  ['지역사회 감염증','지역사회감염|감염성설사|여행자설사|식중독|foodpoisoning|뇌수막염|meningitis|봉와직염|cellulitis|괴사근막염|necrotizingfasciitis|골수염|osteomyelitis'],
+  ['병원 내 감염','병원감염|병원내감염|의료관련감염|nosocomial|중심정맥관|clabsi|카테터관련|수술부위감염|mrsa|vre|cre|격리|손위생|difficile|클로스트리디오이데스'],
+  ['그람양성균에 의한 질환','그람양성|grampositive|포도알균|포도상구균|staphylococ|사슬알균|연쇄상구균|streptococ|폐렴알균|장알균|enterococ|디프테리아|diphtheria|리스테리아|listeria|탄저|anthrax|파상풍|tetanus|보툴리|botul|독성쇼크|toxicshock|성홍열'],
+  ['그람음성균에 의한 질환','그람음성|gramnegative|대장균|escherichia|클렙시엘라|klebsiella|녹농균|pseudomonas|살모넬라|salmonella|장티푸스|typhoid|세균이질|shigella|콜레라|cholera|비브리오|vibrio|임균|gonorrh|수막알균|meningococ|헤모필루스|haemophilus|브루셀라|brucell|백일해|pertussis|캄필로박터|campylobact|아시네토박터|acinetobacter|esbl|레지오넬라|legionella|페스트|plague'],
+  ['기타 세균 감염증','혐기균|anaerob|방선균|actinomyc|노카디아|nocardia|바르토넬라|bartonella|고양이할큄|한센|나병|leprosy|비결핵항산균|결핵'],
+  ['스피로헤타병','스피로헤타|spirochet|매독|syphilis|treponema|렙토스피라|leptospir|라임병|lyme|보렐리아|borrelia|재귀열'],
+  ['리케차, 미코플라즈마','리케차|rickettsi|쯔쯔가무시|tsutsugamushi|scrubtyphus|발진티푸스|발진열|큐열|qfever|미코플라즈마|마이코플라스마|mycoplasma|클라미디아|chlamydia|에를리키아|ehrlich|아나플라즈마'],
+  ['바이러스 질환','바이러스|virus|viral|인플루엔자|influenza|코로나|covid|헤르페스|herpes|대상포진|zoster|수두|varicella|거대세포바이러스|cmv|ebv|전염단핵구증|mononucleosis|hiv|에이즈|aids|홍역|measles|풍진|rubella|볼거리|유행귀밑샘|mumps|sfts|중증열성혈소판|신증후군출혈열|한타|hantavirus|뎅기|dengue|광견병|rabies|일본뇌염'],
+  ['진균 감염','진균|fungal|칸디다|candid|아스페르길|aspergill|크립토콕|cryptococ|털곰팡이|뮤코르|mucor|히스토플라스마|histoplasm|폐포자충|pneumocystis|pcp|pjp|암포테리신|amphotericin|플루코나졸|fluconazole'],
+  ['원생동물 감염','원충|원생동물|protozo|말라리아|malaria|plasmodium|톡소플라즈마|toxoplasm|아메바|amoeb|람블편모충|giardia|크립토스포리디|cryptosporid|리슈만|leishman|트리파노소마|trypanosom|트리코모나스|trichomon'],
+  ['기생충 감염','기생충|helminth|회충|ascaris|간흡충|clonorchis|폐흡충|paragonimus|요충|enterobius|편충|조충|촌충|taenia|낭미충|cysticerc|개회충|toxocara|아니사키스|anisakis|분선충|strongyloid|구충|hookworm|선모충|trichinella|주혈흡충|schistosom'],
+  ['예방접종','예방접종|백신|vaccin|immunization|접종일정|노출후예방']],
+ '내분비':[
+  ['뇌하수체·시상하부 질환','뇌하수체|pituitary|시상하부|hypothal|프로락틴|prolactin|말단비대|acromegal|성장호르몬|growthhormone|쿠싱병|요붕증|diabetesinsipidus|siadh|뇌하수체기능저하|hypopituitar|쉬한|sheehan|두개인두종|craniopharyng'],
+  ['갑상샘 질환','갑상샘|갑상선|thyroid|그레이브스|graves|하시모토|hashimoto|갑상샘중독|thyrotox|hypothyroid|hyperthyroid|thyroiditis|갑상샘결절|갑상샘암|tsh|점액부종|myxedema|갑상샘폭풍'],
+  ['부신피질 질환','부신피질|adrenalcortex|쿠싱|cushing|코르티솔|cortisol|알도스테론|aldosterone|원발성알도스테론|부신기능저하|부신기능부전|adrenalinsufficiency|애디슨|addison|선천부신증식|cah|21수산화|부신우연종|incidentaloma|부신위기|감초|licorice|11β|무기질코르티코이드'],
+  ['부신수질질환·갈색 세포종','갈색세포종|pheochromocytoma|부신수질|adrenalmedulla|카테콜아민|catecholamine|메타네프린|metanephrine|부신경절종|paraganglioma'],
+  ['다발 내분비 종양','다발내분비|multipleendocrine|men1|men2|men2a|men2b'],
+  ['당뇨병','당뇨병|당뇨|diabetesmellitus|dka|hhs|케톤산증|ketoacidosis|고삼투고혈당|인슐린치료|메트포르민|metformin|sglt2|glp1|dpp4|당화혈색소|hba1c|임신당뇨'],
+  ['저혈당','저혈당|hypoglyc|인슐린종|insulinoma|c펩타이드|cpeptide|인위저혈당'],
+  ['지질대사 이상, 비만 및 대사증후군','이상지질|지질대사|dyslipid|고지혈|hyperlipid|고콜레스테롤|hypercholest|중성지방|triglycer|스타틴|statin|비만|obesity|대사증후군|metabolicsyndrome|ldl|에제티미브|pcsk9'],
+  ['부갑상샘 및 칼슘대사','부갑상샘|부갑상선|parathyroid|pth|고칼슘|hypercalc|저칼슘|hypocalc|비타민d|vitamind|골연화|osteomalac|구루병|rickets|저칼슘뇨|pthrp|칼슘대사'],
+  ['골다공증','골다공|osteoporo|골밀도|bmd|dexa|비스포스포네이트|bisphosphon|데노수맙|denosumab|frax|파제트|paget'],
+  ['노인병학','노인병|geriatr|노쇠|frailty|섬망|delirium|낙상|다약제|polypharm|근감소|sarcopen'],
+  ['포르피리아','포르피린|포르피리아|porphyri']],
+ '알레르기':[
+  ['알레르기질환의 일반고찰','알레르기질환의일반|과민반응분류|ige매개|피부단자|skinprick|특이ige|알레르겐|면역요법|immunotherapy|비만세포|mastcell'],
+  ['아나필락시스','아나필락시|anaphyla|트립타제|tryptase'],
+  ['두드러기와 혈관부종','두드러기|urticaria|혈관부종|angioedema|c1억제|c1inhibitor|브라디키닌|bradykinin'],
+  ['알레르기 비염','알레르기비염|allergicrhinitis|비염|rhinitis|비용종|nasalpolyp'],
+  ['음식 알레르기','음식알레르기|식품알레르기|foodallergy|땅콩|peanut|구강알레르기|운동유발'],
+  ['약물 알레르기','약물알레르기|drugallergy|약물과민|페니실린알레르기|스티븐스|stevens|sjs|독성표피괴사|dress|아스피린과민|aerd|조영제과민|탈감작']],
+ '혈액':[
+  ['빈혈의 접근','빈혈의접근|빈혈접근|망상적혈구|reticulocyte|적혈구지수|소구성|microcytic|대구성|macrocytic|정구성|normocytic|만성질환빈혈|anemiaofchronic'],
+  ['철결핍빈혈','철결핍|irondeficiency|페리틴|ferritin|tibc|트랜스페린|지중해빈혈|thalassemia|철적모구|sideroblast'],
+  ['거대적혈모구빈혈','거대적혈모구|megaloblast|비타민b12|b12|코발라민|cobalamin|엽산|folate|악성빈혈|perniciousanemia|메틸말론산'],
+  ['재생불량빈혈','재생불량|aplasticanemia|골수부전|bonemarrowfailure|범혈구감소|pancytopenia|순수적혈구무형성'],
+  ['용혈성 빈혈','용혈|hemoly|구상적혈구|spherocyt|g6pd|겸상|sicklecell|자가면역용혈|aiha|쿰스|coombs|pnh|발작야간혈색소뇨|한랭응집'],
+  ['출혈 질환의 접근','출혈질환의접근|출혈경향|bleedingdisorder|aptt|혼합검사|mixingstudy|지혈기전|hemostasis'],
+  ['혈소판 장애','혈소판감소|thrombocytopenia|itp|면역혈소판|ttp|혈전혈소판감소|hit|헤파린유발|혈소판기능|glanzmann|혈소판증가|thrombocytosis'],
+  ['혈액응고인자의 장애','혈우병|hemophilia|폰빌레브란트|vonwillebrand|vwd|응고인자|비타민k결핍|와파린|warfarin|혈전성향|thrombophilia|라이덴|leiden|항트롬빈|단백c|단백s'],
+  ['혈관벽 장애','혈관벽|혈관성자반|괴혈병|scurvy|유전출혈모세혈관확장|hht|오슬러|노인자반'],
+  ['파종혈관내응고','파종혈관내응고|dic|disseminatedintravascular|소모응고'],
+  ['백혈병','백혈병|leukemia|aml|cml|cll|급성골수성|급성림프모구|만성골수성|만성림프구성|필라델피아|philadelphia|bcrabl|이매티닙|imatinib|급성전골수구|apl|아우어'],
+  ['림프종','림프종|lymphoma|호지킨|hodgkin|dlbcl|여포림프종|버킷|burkitt|외투세포|리드스턴버그|reedsternberg|균상식육종'],
+  ['기타 혈액암','다발골수종|multiplemyeloma|골수종|myeloma|mgus|형질세포|발덴스트롬|waldenstr|아밀로이드증|amyloidosis|골수증식|myeloproliferative|진성적혈구증가|polycythemiavera|본태혈소판|골수섬유증|myelofibrosis|골수형성이상|myelodysplas|mds|jak2'],
+  ['림프절 종대','림프절종대|림프절비대|lymphadenopathy|림프절병증|기쿠치|kikuchi|캐슬만|castleman|비장비대|splenomegaly|비장종대']],
+ '종양':[
+  ['종양의 진단','종양의진단|종양표지자|tumormarker|암선별|암검진|cancerscreening|국가암검진|병기결정|staging|tnm|원발부위불명|unknownprimary'],
+  ['종양의 치료','종양의치료|항암화학|chemotherapy|항암제|표적치료|targetedtherapy|면역항암|면역관문|immunecheckpoint|pd1|pdl1|ctla4|방사선치료|radiotherapy|보조요법|adjuvant|선행요법|neoadjuvant|완화치료|palliative|타목시펜|tamoxifen|면역관련이상반응'],
+  ['종양의 합병증','종양의합병증|발열성호중구감소|발열호중구감소|호중구감소성발열|febrileneutropenia|종양용해|tumorlysis|척수압박|spinalcordcompression|상대정맥증후군|악성고칼슘|부종양|paraneoplast|악성흉수|암성통증|cancerpain|종양응급']],
+ '류마티스':[
+  ['전신홍반루푸스(SLE)','루푸스|lupus|sle|dsdna|항sm|약물유발루푸스|신생아루푸스'],
+  ['항인지질증후군(APS)','항인지질|antiphospholipid|aps|루푸스항응고|lupusanticoagulant|카디오리핀|cardiolipin|습관유산'],
+  ['전신경화증 및 관련 질환','전신경화|경피증|scleroderma|systemicsclerosis|crest|레이노|raynaud|scl70|센트로미어|centromere|혼합결합조직|mctd'],
+  ['염증성 근육병증','근염|myositis|피부근염|dermatomyositis|다발근염|polymyositis|봉입체|inclusionbody|jo1|헬리오트롭|고트론|gottron'],
+  ['쇼그렌 증후군','쇼그렌|sjogren|sjögren|구강건조|안구건조|건조증후군|sicca|쉬르머|schirmer'],
+  ['베체트병','베체트|behcet|behçet|페널지|pathergy'],
+  ['혈관염','혈관염|vasculitis|거대세포동맥염|giantcell|측두동맥염|다카야수|takayasu|결절다발동맥염|polyarteritis|가와사키|kawasaki|anca|육아종증다발혈관염|gpa|베게너|wegener|현미경다발혈관염|mpa|호산구육아종|egpa|헤노흐|henoch|한랭글로불린|cryoglobulin|류마티스다발근통|polymyalgia|pmr'],
+  ['척추관절병증(SpA)','척추관절|spondyloarth|강직척추|강직성척추|ankylosing|건선관절|psoriaticarthritis|반응관절|reactivearthritis|라이터|reiter|hlab27|b27|천장관절|sacroiliit|부착부염|enthesitis'],
+  ['류마티스 관절염(RA)','류마티스관절염|rheumatoidarthritis|류마티스인자|rheumatoidfactor|anticcp|항ccp|메토트렉세이트|methotrexate|dmard|펠티|felty'],
+  ['골관절염','골관절염|osteoarthritis|퇴행성관절|헤베르덴|heberden|부샤르|bouchard'],
+  ['결정유발 관절염','통풍|gout|요산|uricacid|가성통풍|pseudogout|cppd|피로인산칼슘|콜히친|colchicine|알로퓨리놀|allopurinol|페북소스타트|febuxostat|결정유발'],
+  ['감염관절염','감염관절|화농관절|septicarthritis|세균관절|임균관절|관절액배양|인공관절감염'],
+  ['섬유근육통','섬유근|fibromyalg|압통점|tenderpoint']]
+}};
+const TAX_ADDED=new Set(['간담췌|간종양','간담췌|담낭·담도 질환','간담췌|췌장 질환','내분비|뇌하수체·시상하부 질환','내분비|갑상샘 질환']);
+const TAX={};const SUBM={};
+const nk=s=>String(s==null?'':s).toLowerCase().replace(/[\s_\-·,\/()'"’.:;]/g,'');
+for(const[subj,sy]of Object.entries(TAX_SRC)){TAX[subj]={};for(const[sys,list]of Object.entries(sy)){TAX[subj][sys]=list.map(x=>x[0]);
+  for(const[name,kw]of list)SUBM[subj+'|'+sys+'|'+name]=[...new Set((kw||'').split('|').filter(Boolean))].map(k=>{const kl=k.toLowerCase();
+    return /^[a-z0-9]+$/.test(kl)&&kl.length<=5?{re:new RegExp('(^|[^a-z0-9])'+kl+'($|[^a-z0-9])'),w:1+kl.length/10}:{s:nk(kl),w:1+Math.min(kl.length,10)/10};});}}
+
 const SUBJ_ALIASES={
   '내과':['internal medicine','im','내과학'],
   '외과':['surgery','general surgery','외과학'],
   '소아청소년과':['소아과','pediatrics','peds','소아청소년의학'],
   '산부인과':['산과','부인과','obstetrics','gynecology','obgyn','ob/gyn'],
   '정신건강의학과':['정신과','psychiatry','정신의학'],
-  '신경과':['neurology'],
+  '신경과':['neurology','신경내과'],
   '예방의학':['preventive medicine','역학','보건','예방의학·역학'],
   '보건의약관계법규':['법규','의료법규','의료법','law','보건의료법규']
 };
 const SYS_ALIASES={
   '순환기':['심장','심장내과','순환기내과','cardiology','cardio','cardiovascular','심혈관'],
   '호흡기':['호흡기내과','폐','pulmonology','pulmonary','respiratory','호흡기·중환자'],
-  '소화기':['소화기내과','위장관','간','간담췌','gastroenterology','gi','hepatology','소화기·간'],
+  '위장관':['gastrointestinal','위장','소화관','위장관질환'],
+  '간담췌':['간','간담도','간·담도·췌장','췌장','담도','hepatology','hepatobiliary','liver','간담췌내과'],
   '신장':['신장내과','콩팥','nephrology','renal','신장·전해질','전해질','산염기','산-염기','신장/전해질'],
-  '내분비':['내분비내과','endocrinology','endocrine','대사','내분비·대사'],
-  '혈액종양':['혈액','종양','혈액종양내과','hematology','oncology','hemato-oncology','혈액·종양','종양내과'],
   '감염':['감염내과','infectious disease','infection','id','감염병'],
-  '류마티스·알레르기':['류마티스','알레르기','류마티스내과','알레르기내과','rheumatology','allergy','류마티스/알레르기','알레르기·임상면역','류마티스·알레르기내과']
+  '내분비':['내분비내과','endocrinology','endocrine','대사','내분비·대사'],
+  '알레르기':['allergy','알레르기내과','알레르기·임상면역','임상면역'],
+  '혈액':['hematology','혈액내과'],
+  '종양':['oncology','종양내과'],
+  '류마티스':['rheumatology','류마티스내과','류마티즘'],
+  // 예전 앱 버전의 묶음 분과 → 세부 주제를 보고 둘 중 하나로 나눈다
+  '소화기':['소화기내과','gastroenterology','gi','소화기·간','소화기계'],
+  '혈액종양':['혈액종양내과','hemato-oncology','hematology-oncology','혈액·종양','혈액/종양'],
+  '류마티스·알레르기':['류마티스/알레르기','류마티스알레르기','류마티스·알레르기내과']
 };
-const SYS_ORDER=Object.keys(SYS_ALIASES);
-const NOSYS='(분과 미지정)';
+const AMBIG={'소화기':['위장관','간담췌'],'혈액종양':['혈액','종양'],'류마티스·알레르기':['류마티스','알레르기']};
+const SYS_ORDER=Object.keys(TAX['내과']);
+const NOSYS='(분과 미지정)',NOSUB='(세부 미지정)';
 const _key=s=>String(s).toLowerCase().replace(/[\s_\-]/g,'');
 function canon(s,table){
   if(s==null)return'';const raw=String(s).trim();if(!raw)return'';const k=_key(raw);
   for(const[c,arr]of Object.entries(table))if(_key(c)===k||arr.some(a=>_key(a)===k))return c;
   return raw;
 }
+const subList=(subj,sys)=>((TAX[subj]||{})[sys])||[];
+function findSub(subj,s,cands){
+  const T=TAX[subj];if(!T)return null;const k=nk(s);if(!k)return null;
+  const order=[...cands.filter(x=>T[x]),...Object.keys(T).filter(x=>!cands.includes(x))];
+  for(const sys of order)for(const name of T[sys])if(nk(name)===k)return{sys,name};
+  if(k.length>=3)for(const sys of order)for(const name of T[sys]){const n=nk(name);if(n.includes(k)||k.includes(n))return{sys,name};}
+  return null;
+}
+// 기존 문항 자동 분류: 주제(topic) > 학습목표 > 질문 > 증례 순으로 가중치를 둔 키워드 점수
+function classifySub(it,cands){
+  const T=TAX[it.subject];if(!T)return null;
+  let sysList=(cands||[]).filter(s=>T[s]);if(!sysList.length)sysList=Object.keys(T);
+  const F=[[it.topic,3],[it.learning_objective,2],[it.question,1],[it.stem,0.3]].filter(f=>f[0]).map(([t,w])=>({raw:String(t).toLowerCase(),n:nk(t),w}));
+  if(!F.length)return null;
+  let best=null;
+  for(const sys of sysList)for(const name of T[sys]){
+    let sc=0;const nn=nk(name);
+    if(F[0]&&it.topic&&F[0].n.includes(nn))sc+=5;
+    for(const m of SUBM[it.subject+'|'+sys+'|'+name]||[])for(const f of F)if(m.re?m.re.test(f.raw):f.n.includes(m.s))sc+=f.w*m.w;
+    if(sc>(best?best.sc:0))best={sys,name,sc};
+  }
+  return best&&best.sc>=2.5?best:null;
+}
 function normClass(it){
-  const before=JSON.stringify([it.subject,it.system,it.related_systems]);
+  const snap=()=>JSON.stringify([it.subject,it.system,it.related_systems,it.subtopic,it.subtopic_auto]);const before=snap();
   it.subject=canon(it.subject,SUBJ_ALIASES)||'미분류';
   let sys=it.system,rel=it.related_systems!=null?it.related_systems:(it.secondary_systems||[]);
   delete it.secondary_systems;
   if(!Array.isArray(rel))rel=String(rel).split(/[,/+;]/);
   if(Array.isArray(sys)){rel=[...sys.slice(1),...rel];sys=sys[0];}
   else if(typeof sys==='string'&&/[,/+;]/.test(sys)&&!SYS_ALIASES[sys.trim()]){const p=sys.split(/[,/+;]/);sys=p[0];rel=[...p.slice(1),...rel];}
-  it.system=canon(sys,SYS_ALIASES);
-  it.related_systems=[...new Set(rel.map(x=>canon(x,SYS_ALIASES)).filter(x=>x&&x!==it.system))];
-  return before!==JSON.stringify([it.subject,it.system,it.related_systems]);
+  let c=canon(sys,SYS_ALIASES);
+  // '내과 › 신경과'처럼 과목명이 분과 자리에 들어오면 과목으로 올린다
+  const asSubj=canon(c,SUBJ_ALIASES);
+  if(c&&SUBJ_ALIASES[asSubj]&&asSubj!==it.subject&&!(TAX[it.subject]||{})[c]){it.subject=asSubj;c='';}
+  const T=TAX[it.subject];
+  const cands=AMBIG[c]?AMBIG[c]:(c?[c]:[]);
+  let finalSys=AMBIG[c]?'':c;
+  const relC=[];rel.forEach(x=>{const k=canon(x,SYS_ALIASES);if(AMBIG[k])relC.push(...AMBIG[k]);else if(k)relC.push(k);});
+  const sub=it.subtopic!=null?String(it.subtopic).trim():'';
+  if(T){
+    const hit=sub?findSub(it.subject,sub,cands):null;
+    if(hit){if(finalSys&&finalSys!==hit.sys&&T[finalSys])relC.push(finalSys);finalSys=hit.sys;it.subtopic=hit.name;}
+    else{
+      const r=classifySub(it,cands);
+      if(r&&(!finalSys||!T[finalSys]||cands.includes(r.sys))){finalSys=r.sys;it.subtopic=r.name;it.subtopic_auto=true;}
+      else{it.subtopic='';delete it.subtopic_auto;if(!finalSys&&cands.length)finalSys=cands[0];}
+    }
+  }else if(sub)it.subtopic=sub;
+  it.system=finalSys;
+  it.related_systems=[...new Set(relC.filter(x=>x&&x!==finalSys))];
+  if(!it.subtopic)delete it.subtopic;
+  return before!==snap();
 }
 const primSys=it=>it.system||NOSYS;
+const subOf=it=>it.subtopic||NOSUB;
 const allSys=it=>[primSys(it),...(it.related_systems||[])];
 const sysSort=(a,b)=>{const ia=SYS_ORDER.indexOf(a),ib=SYS_ORDER.indexOf(b);if(a===NOSYS)return 1;if(b===NOSYS)return -1;return(ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);};
+// 한 분과 안의 세부 주제 목록: 표준 목록 순서 + 표준 밖 주제 + 미지정
+function subsFor(subj,sys,items){
+  const base=sys===NOSYS?[]:[...subList(subj,sys)];
+  const extra=new Set();let none=false;
+  for(const it of items)if((it.subject||'미분류')===subj&&primSys(it)===sys){if(!it.subtopic)none=true;else if(!base.includes(it.subtopic))extra.add(it.subtopic);}
+  return[...base,...[...extra].sort(),...(none?[NOSUB]:[])];
+}
 
 /* ============ 상태 & 저장소 (IndexedDB, 실패 시 localStorage) ============ */
 const S={bank:{},attempts:[],srs:{},flags:{},meta:{batches:[],deleted:[]}};
 let route=location.hash.slice(1)||'dash';
 let session=null;
-const setup={subjects:[],systems:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
-const browse={q:'',subj:'',sys:'',status:'all',limit:50};
+const FILTER0={subjects:[],systems:[],subtopics:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
+const setup=JSON.parse(JSON.stringify(FILTER0));
+const browse={q:'',subj:'',sys:'',sub:'',status:'all',limit:50};
+const dashOpen=new Set();
 let dbp=null;
 function idbOpen(){return new Promise((res,rej)=>{const r=indexedDB.open('kmle-qbank',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function kvGet(k){
@@ -275,8 +498,9 @@ function parseInput(text){
 }
 function extractItems(data){
   if(!data||typeof data!=='object')return{items:[],metas:[]};
-  if(Array.isArray(data)){const items=[],metas=[];for(const d of data){const r=extractItems(d);items.push(...r.items);metas.push(...r.metas);}return{items,metas};}
+  if(Array.isArray(data)){const items=[],metas=[],cls=[];for(const d of data){const r=extractItems(d);items.push(...r.items);metas.push(...r.metas);cls.push(...(r.cls||[]));}return{items,metas,cls};}
   if(data.schema==='kmle-qbank-backup')return{items:Object.values(data.bank||{}),metas:[]};
+  if(Array.isArray(data.classifications))return{items:[],metas:[],cls:data.classifications};
   if(Array.isArray(data.items))return{items:data.items,metas:data.batch_meta?[data.batch_meta]:[]};
   if(data.stem)return{items:[data],metas:[]};
   return{items:[],metas:data.batch_meta?[data.batch_meta]:[]};
@@ -311,10 +535,15 @@ function validate(it){
   return{errs,warns};
 }
 function ingestData(list,source,opts={update:true}){
-  const rep={added:0,updated:0,dup:0,invalid:[],warned:[],metas:[]};
+  const rep={added:0,updated:0,dup:0,invalid:[],warned:[],metas:[],cls:0,clsMiss:[]};
   const batchId='B'+Date.now().toString(36);
   for(const data of list){
-    const{items,metas}=extractItems(data);rep.metas.push(...metas);
+    const{items,metas,cls}=extractItems(data);rep.metas.push(...metas);
+    for(const c of cls||[]){
+      const it=c&&S.bank[c.id];if(!it){rep.clsMiss.push(String(c&&c.id));continue;}
+      if(c.subject)it.subject=c.subject;if(c.system!=null)it.system=c.system;if(c.related_systems!=null)it.related_systems=c.related_systems;
+      it.subtopic=c.subtopic||'';delete it.subtopic_auto;normClass(it);rep.cls++;
+    }
     for(const raw of items){
       const it=normalizeItem(raw);const v=validate(it);
       if(v.errs.length){rep.invalid.push({stem:norm(it.stem).slice(0,50),errs:v.errs});continue;}
@@ -334,7 +563,8 @@ function ingestData(list,source,opts={update:true}){
   return rep;
 }
 function reportHTML(rep){
-  let h=`<div class="banner ${rep.added||rep.updated?'ok':'info'}">새 문항 <b>${rep.added}</b>개 추가${rep.updated?` · 수정본 반영 <b>${rep.updated}</b>개`:''} · 중복 ${rep.dup}개 건너뜀${rep.invalid.length?` · <b>형식 오류 ${rep.invalid.length}개 제외</b>`:''}</div><div class="rep">`;
+  if(rep.cls&&!rep.added&&!rep.updated&&!rep.dup&&!rep.invalid.length)return `<div class="banner ok">세부 주제 분류 <b>${rep.cls}</b>개 반영${rep.clsMiss.length?` · 찾을 수 없는 id ${rep.clsMiss.length}개`:''}</div>`;
+  let h=`<div class="banner ${rep.added||rep.updated||rep.cls?'ok':'info'}">새 문항 <b>${rep.added}</b>개 추가${rep.updated?` · 수정본 반영 <b>${rep.updated}</b>개`:''}${rep.cls?` · 분류 반영 <b>${rep.cls}</b>개`:''} · 중복 ${rep.dup}개 건너뜀${rep.invalid.length?` · <b>형식 오류 ${rep.invalid.length}개 제외</b>`:''}</div><div class="rep">`;
   for(const x of rep.invalid)h+=`<div class="bad-t">✗ "${esc(x.stem)}…" — ${esc(x.errs.join(', '))}</div>`;
   for(const x of rep.warned)h+=`<div class="warn">△ <span class="mono">${esc(x.id)}</span> — ${esc(x.warns.join(', '))}</div>`;
   for(const m of rep.metas){
@@ -382,7 +612,7 @@ function weaknessPacket(atts,onlyUnresolved){
   for(const a of atts){if(a.skipped||a.correct)continue;const e=by[a.qid]||(by[a.qid]={w:0,d:0,ch:new Set(),lastConf:a.conf});e.w++;if(a.conf===3)e.d++;e.ch.add(a.choice);e.lastConf=a.conf;}
   const rows=Object.entries(by).filter(([q])=>S.bank[q]&&(!onlyUnresolved||unresolved(sm[q]))).map(([qid,e])=>{
     const it=S.bank[qid];const ch=[...e.ch];
-    return{qid,subject:it.subject,system:it.system,related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
+    return{qid,subject:it.subject,system:it.system,subtopic:it.subtopic||'',related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
       answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>((it.option_analysis||{})[c]||{}).misconception).filter(Boolean),
       wrong_count:e.w,dangerous_count:e.d,last_confidence:e.lastConf,takeaway:it.takeaway,misconception_tags:it.misconception_tags||[]};
   }).sort((a,b)=>(b.dangerous_count*2+b.wrong_count)-(a.dangerous_count*2+a.wrong_count)).slice(0,30);
@@ -391,8 +621,39 @@ function weaknessPacket(atts,onlyUnresolved){
   return '/weakness\n```json\n'+JSON.stringify(packet,null,1)+'\n```';
 }
 function coveragePacket(){
-  const g={};for(const it of Object.values(S.bank)){const k=[it.subject,it.system,it.topic].filter(Boolean).join(' > ')||'미분류';(g[k]=g[k]||[]).push(it.learning_objective||norm(it.stem).slice(0,50));}
-  return '/coverage\n```json\n'+JSON.stringify({existing_objectives:g,existing_misconception_tags:allTags()},null,1)+'\n```';
+  const g={};for(const it of Object.values(S.bank)){const k=[it.subject,it.system,it.subtopic,it.topic].filter(Boolean).join(' > ')||'미분류';(g[k]=g[k]||[]).push(it.learning_objective||norm(it.stem).slice(0,50));}
+  // 문항이 0개인 세부 주제 = 아직 손대지 않은 영역
+  const items=Object.values(S.bank),empty={};
+  for(const[subj,T]of Object.entries(TAX))for(const[sys,subs]of Object.entries(T)){const z=subs.filter(s=>!items.some(it=>it.subject===subj&&it.system===sys&&it.subtopic===s));if(z.length)empty[subj+' > '+sys]=z;}
+  return '/coverage\n```json\n'+JSON.stringify({existing_objectives:g,subtopics_with_zero_items:empty,existing_misconception_tags:allTags()},null,1)+'\n```';
+}
+const needsClass=it=>!!TAX[it.subject]&&(!it.subtopic||it.subtopic_auto||!subList(it.subject,it.system).includes(it.subtopic));
+function classifyPacket(){
+  const list=Object.values(S.bank).filter(needsClass).slice(0,50);
+  if(!list.length){toast('분류가 필요한 문항이 없습니다');return null;}
+  const subjs=[...new Set(list.map(it=>it.subject))],tax={};subjs.forEach(s=>tax[s]=TAX[s]);
+  const rows=list.map(it=>({id:it.id,subject:it.subject,current_system:it.system||'',current_guess:it.subtopic||'',topic:it.topic||'',learning_objective:it.learning_objective||'',question:it.question||'',stem_head:norm(it.stem).slice(0,160)}));
+  return `아래 KMLE 문항들을 분류표에 맞춰 분류하라.
+규칙:
+1. 각 문항마다 system 1개와 subtopic 1개를 분류표에 있는 문자열 그대로 고른다.
+2. 기준은 증례의 배경 질환이 아니라 '정답을 고르는 데 결정적인 지식'이다. (예: DKA 환자의 산-염기 해석 → 신장 / 산-염기 대사장애, related_systems ["내분비"])
+3. 다른 분과 지식도 판별에 실제로 필요하면 related_systems에 넣는다. 대부분은 빈 배열이다.
+4. 분류표에 맞는 subtopic이 없으면 ""로 둔다.
+5. current_guess는 앱의 키워드 자동 추정이다. 틀렸을 수 있으니 참고만 한다.
+6. 아래 JSON 코드블록 하나만 출력한다. id는 절대 바꾸지 않는다.
+\`\`\`json
+{"classifications":[{"id":"Q-XXXX","system":"신장","subtopic":"세관기능장애","related_systems":[]}]}
+\`\`\`
+
+분류표:
+\`\`\`json
+${JSON.stringify(tax)}
+\`\`\`
+
+문항 (${list.length}개${Object.values(S.bank).filter(needsClass).length>list.length?' — 나머지는 이 결과를 반영한 뒤 버튼을 다시 누르면 이어서 나옵니다':''}):
+\`\`\`json
+${JSON.stringify(rows,null,1)}
+\`\`\``;
 }
 function auditPacket(){
   const items=Object.keys(S.flags).filter(id=>S.bank[id]).map(id=>Object.assign(strip(S.bank[id]),{user_flag:S.flags[id].reason||''}));
@@ -401,8 +662,9 @@ function auditPacket(){
 }
 function genRequest(){
   const f=$('#rfocus').value.trim(),n=$('#rn').value||10,lv=$('#rlv').value,fl=f.toLowerCase();
-  const objs=Object.values(S.bank).filter(it=>!fl||[it.topic,it.system,(it.related_systems||[]).join(' '),it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl)).map(it=>it.learning_objective).filter(Boolean);
-  let t=`/generate n=${n} level=${lv}${f?` focus="${f}"`:''}`;
+  const sv=($('#rsub')&&$('#rsub').value)||'';const[rsubj,rsys,rsub]=sv?sv.split('|'):['','',''];
+  const objs=Object.values(S.bank).filter(it=>(!rsys||(it.subject===rsubj&&it.system===rsys&&(!rsub||it.subtopic===rsub)))&&(!fl||[it.topic,it.system,it.subtopic,(it.related_systems||[]).join(' '),it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl))).map(it=>it.learning_objective).filter(Boolean);
+  let t=`/generate n=${n} level=${lv}${rsys?` subject="${rsubj}" system="${rsys}"`:''}${rsub?` subtopic="${rsub}"`:''}${f?` focus="${f}"`:''}`;
   if(objs.length)t+=`\n\nexisting_objectives (이미 출제됨 — 중복 금지):\n`+JSON.stringify(objs,null,1);
   const tags=allTags();if(tags.length)t+=`\n\nexisting_misconception_tags (가능하면 재사용):\n`+JSON.stringify(tags);
   copy(t);
@@ -429,8 +691,8 @@ function sessionMD(){
 
 /* ============ 렌더링 공통 ============ */
 function badges(it){
-  const b=[];if(it.subject)b.push(esc([it.subject,it.system].filter(Boolean).join(' › ')));
-  if(it.topic)b.push(esc(it.topic));
+  const b=[];if(it.subject)b.push(esc([it.subject,it.system,it.subtopic].filter(Boolean).join(' › '))+(it.subtopic_auto?' <span class="mut">(추정)</span>':''));
+  if(it.topic&&it.topic!==it.subtopic)b.push(esc(it.topic));
   let h=b.map(x=>`<span class="bdg">${x}</span>`).join('');
   if((it.related_systems||[]).length)h+=`<span class="bdg vio">연계: ${esc(it.related_systems.join(', '))}</span>`;
   if(it.difficulty)h+=`<span class="bdg">Lv${it.difficulty}</span>`;
@@ -489,31 +751,47 @@ function emptyState(){return `<div class="card empty"><h2>QBank가 비어 있습
 function subjectTable(items,sm){
   const T={};
   const cell=()=>({n:0,rel:0,att:0,c:0,t:0});
+  const stKey=it=>(it.subject||'미분류')+'|'+primSys(it)+'|'+subOf(it);
+  const ST={};
   for(const it of items){
     const s=it.subject||'미분류';const sub=T[s]||(T[s]={tot:cell(),sys:{}});
     sub.tot.n++;if(sm[it.id])sub.tot.att++;
     allSys(it).forEach((y,i)=>{const e=sub.sys[y]||(sub.sys[y]=cell());if(i===0)e.n++;else e.rel++;if(sm[it.id])e.att++;});
+    const k=stKey(it),e=ST[k]||(ST[k]=cell());e.n++;if(sm[it.id])e.att++;
   }
   for(const a of S.attempts){
     const it=S.bank[a.qid];if(!it)continue;const sub=T[it.subject||'미분류'];if(!sub)continue;
     sub.tot.t++;if(a.correct)sub.tot.c++;
     for(const y of allSys(it)){const e=sub.sys[y];if(e){e.t++;if(a.correct)e.c++;}}
+    const e=ST[stKey(it)];if(e){e.t++;if(a.correct)e.c++;}
   }
-  // 가장 약한 분과: 시도 5회 이상 중 정답률 최저
-  let weak=null;
+  // 가장 약한 분과·세부 주제: 시도 5회 이상 중 정답률 최저
+  let weak=null,weakSt=null;
   for(const[s,sub]of Object.entries(T))for(const[y,e]of Object.entries(sub.sys))if(y!==NOSYS&&e.t>=5){const acc=e.c/e.t;if(!weak||acc<weak.acc)weak={s,y,acc,t:e.t};}
-  const row=(cls,label,e,showRel)=>`<tr class="${cls}"><td>${esc(label)}</td><td class="mono">${e.n}</td><td class="mono mut">${showRel?(e.rel||''):''}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`;
+  for(const[k,e]of Object.entries(ST))if(e.t>=5&&!k.endsWith('|'+NOSUB)){const acc=e.c/e.t;if(!weakSt||acc<weakSt.acc)weakSt={k,acc,t:e.t};}
+  const row=(cls,label,e,showRel,attrs)=>`<tr class="${cls}"${attrs||''}><td>${label}</td><td class="mono">${e.n}</td><td class="mono mut">${showRel?(e.rel||''):''}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`;
   let body='';
   for(const[s,sub]of Object.entries(T).sort((a,b)=>b[1].tot.n-a[1].tot.n)){
-    body+=row('sub',s,sub.tot,false);
+    body+=row('sub',esc(s),sub.tot,false);
+    // 표준 분과는 문항이 0개여도 보여준다 → 어느 분과가 비어 있는지 한눈에
+    for(const y of Object.keys(TAX[s]||{}))if(!sub.sys[y])sub.sys[y]=cell();
     const sys=Object.entries(sub.sys).sort((a,b)=>sysSort(a[0],b[0]));
-    if(!(sys.length===1&&sys[0][0]===NOSYS))
-      for(const[y,e]of sys)body+=row('sys'+(weak&&weak.s===s&&weak.y===y?' weak':''),y,e,true);
+    if(sys.length===1&&sys[0][0]===NOSYS)continue;
+    for(const[y,e]of sys){
+      const subs=subsFor(s,y,items),key=s+'|'+y,open=dashOpen.has(key);
+      const std=subList(s,y),covered=std.filter(x=>(ST[s+'|'+y+'|'+x]||{}).n).length;
+      const lab=`${subs.length?`<span class="caret">${open?'▾':'▸'}</span> `:''}${esc(y)}${std.length?` <span class="cov mono">${covered}/${std.length}</span>`:''}`;
+      body+=row('sys'+(subs.length?' tog':'')+(weak&&weak.s===s&&weak.y===y?' weak':'')+(!e.n&&!e.rel?' zero':''),lab,e,true,subs.length?` data-act="toggleSys" data-k="${esc(key)}"`:'');
+      if(open)for(const x of subs){const k=s+'|'+y+'|'+x,c=ST[k]||cell();
+        body+=row('st'+(c.n?'':' zero')+(weakSt&&weakSt.k===k?' weak':''),esc(x)+(TAX_ADDED.has(y+'|'+x)?' <span class="mut" title="참고자료에 없어 추가한 항목">＋</span>':''),c,false);}
+    }
   }
   const hasRel=items.some(it=>(it.related_systems||[]).length);
-  return `<div class="card"><h2>과목 › 분과별</h2><div class="tblwrap"><table class="tbl"><tr><th>과목 / 분과</th><th>문항</th><th>연계</th><th>풀어봄</th><th>정답률</th><th></th></tr>${body}</table></div>
-  ${weak?`<div class="bad-t cap">가장 약한 분과: ${esc(weak.s)} › ${esc(weak.y)} — 정답률 ${pct(weak.acc)} (${weak.t}회). 대시보드 위 '스마트 세션' 대신 문제 풀기에서 이 분과만 골라 집중해 보세요.</div>`:''}
-  <div class="mut cap">문항 = 그 분과가 <b>주 분과</b>인 문항 수(과목 합계와 일치). ${hasRel?'연계 = 다른 분과가 주이지만 이 분과 지식도 필요한 다학제 문항 수. ':''}분과 정답률은 연계 문항의 풀이까지 포함합니다.</div></div>`;
+  const wl=weakSt?weakSt.k.split('|'):null;
+  return `<div class="card"><h2>과목 › 분과 › 세부 주제</h2><div class="tblwrap"><table class="tbl"><tr><th>과목 / 분과 / 세부 주제</th><th>문항</th><th>연계</th><th>풀어봄</th><th>정답률</th><th></th></tr>${body}</table></div>
+  ${weak?`<div class="bad-t cap">가장 약한 분과: ${esc(weak.s)} › ${esc(weak.y)} — 정답률 ${pct(weak.acc)} (${weak.t}회).</div>`:''}
+  ${wl?`<div class="bad-t cap">가장 약한 세부 주제: ${esc(wl[1])} › ${esc(wl[2])} — 정답률 ${pct(weakSt.acc)} (${weakSt.t}회). 문제 풀기에서 이 주제만 골라 집중해 보세요.</div>`:''}
+  <div class="mut cap">분과를 누르면 세부 주제가 펼쳐집니다. 분과 옆 숫자(예: 9/14)는 문항이 1개 이상 있는 세부 주제 수 / 전체 세부 주제 수 — 흐린 줄은 아직 문항이 없는 빈 영역입니다. 문항 = 주 분과 기준(과목 합계와 일치). ${hasRel?'연계 = 다른 분과가 주이지만 이 분과 지식도 필요한 다학제 문항 수. ':''}분과 정답률은 연계 문항까지, 세부 주제 정답률은 주 분과 문항만 포함합니다.</div></div>`;
 }
 
 /* ============ 뷰: 대시보드 ============ */
@@ -530,25 +808,30 @@ function vDash(){
   h+=subjectTable(items,sm);
   const mt=misTally(S.attempts).slice(0,10);
   if(mt.length)h+=`<div class="card"><h2>나를 가장 많이 넘어뜨린 오개념</h2><div class="tblwrap"><table class="tbl"><tr><th>오개념 태그</th><th>오답</th><th>치명적</th><th>주제</th></tr>${mt.map(m=>`<tr><td><code>${esc(m.tag)}</code></td><td class="mono">${m.n}</td><td class="mono ${m.d?'bad-t':''}">${m.d}</td><td class="mut">${esc([...m.topics].slice(0,3).join(', '))}</td></tr>`).join('')}</table></div></div>`;
-  h+=`<div class="card"><h2>Gemini 루프</h2><p class="mut">버튼을 누르면 Gemini에 바로 붙여넣을 수 있는 요청문이 복사됩니다.</p><div class="actions"><button class="btn" data-act="copyWeak">/weakness 패킷 복사</button><button class="btn" data-act="copyCoverage">/coverage 패킷 복사</button>${flagN?`<button class="btn" data-act="copyAudit">🚩 신고 문항 /audit 패킷 (${flagN})</button>`:''}</div></div>`;
+  h+=`<div class="card"><h2>Gemini 루프</h2><p class="mut">버튼을 누르면 Gemini에 바로 붙여넣을 수 있는 요청문이 복사됩니다. '세부 주제 분류 패킷'은 세부 주제가 자동 추정이거나 비어 있는 문항을 Gemini(또는 Claude)에게 정확히 분류시키는 요청문입니다 — 결과 JSON을 '문항 추가'에 붙여넣으면 반영됩니다.</p><div class="actions"><button class="btn" data-act="copyWeak">/weakness 패킷 복사</button><button class="btn" data-act="copyCoverage">/coverage 패킷 복사</button>${(()=>{const n=items.filter(needsClass).length;return n?`<button class="btn" data-act="copyClassify">세부 주제 분류 패킷 (${n})</button>`:''})()}${flagN?`<button class="btn" data-act="copyAudit">🚩 신고 문항 /audit 패킷 (${flagN})</button>`:''}</div></div>`;
   const rec=S.meta.batches.slice(-8).reverse().filter(b=>(b.metas||[]).some(m=>(m.conflicts||[]).length||(m.coverage_gaps||[]).length));
   if(rec.length)h+=`<div class="card"><h2>Gemini가 보고한 근거 충돌·공백</h2>${rec.map(b=>`<div class="mut mono" style="margin-top:8px">${dstr(b.ts)} · ${esc(b.source)}</div>${b.metas.map(m=>`${(m.conflicts||[]).length?`<div class="warn">충돌: ${esc(JSON.stringify(m.conflicts))}</div>`:''}${(m.coverage_gaps||[]).length?`<div class="mut">공백: ${esc(JSON.stringify(m.coverage_gaps))}</div>`:''}`).join('')}`).join('')}</div>`;
   return h;
 }
 
 /* ============ 뷰: 문제 풀기 ============ */
-function pool(){
-  const sm=statsMap(),now=Date.now(),kw=setup.kw.trim().toLowerCase();
+function pool(f=setup){
+  const sm=statsMap(),now=Date.now(),kw=(f.kw||'').trim().toLowerCase();
+  const subSel=new Set(f.subtopics||[]),sysWithSub=new Set([...subSel].map(k=>k.split('|').slice(0,2).join('|')));
   let ids=Object.values(S.bank).filter(it=>{
-    if(setup.subjects.length&&!setup.subjects.includes(it.subject||'미분류'))return false;
-    if(setup.systems.length&&!allSys(it).some(y=>setup.systems.includes(y)))return false;
-    const d=it.difficulty;if(d!=null&&((setup.dmin&&d<setup.dmin)||(setup.dmax&&d>setup.dmax)))return false;
-    if(setup.exFlag&&S.flags[it.id])return false;
-    if(kw){const hay=[it.topic,it.system,it.subject,it.learning_objective,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(kw))return false;}
+    if(f.subjects.length&&!f.subjects.includes(it.subject||'미분류'))return false;
+    if(f.systems.length){
+      const M=allSys(it).filter(y=>f.systems.includes(y));if(!M.length)return false;
+      // 세부 주제를 고른 분과는 그 주제만, 고르지 않은 분과는 전체
+      if(subSel.size&&!M.some(y=>!sysWithSub.has(it.subject+'|'+y)||(y===primSys(it)&&subSel.has(it.subject+'|'+y+'|'+subOf(it)))))return false;
+    }
+    const d=it.difficulty;if(d!=null&&((f.dmin&&d<f.dmin)||(f.dmax&&d>f.dmax)))return false;
+    if(f.exFlag&&S.flags[it.id])return false;
+    if(kw){const hay=[it.topic,it.system,it.subtopic,it.subject,it.learning_objective,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(kw))return false;}
     return true;
   }).map(it=>it.id);
   const st=id=>sm[id],byDue=(a,b)=>S.srs[a].due-S.srs[b].due;
-  switch(setup.mode){
+  switch(f.mode){
     case 'new':ids=shuffle(ids.filter(id=>!st(id)));break;
     case 'due':ids=ids.filter(id=>isDue(id,now)).sort(byDue);break;
     case 'wrong':ids=shuffle(ids.filter(id=>st(id)&&!st(id).last.correct));break;
@@ -559,16 +842,35 @@ function pool(){
   return ids;
 }
 function updatePool(){const el=$('#poolInfo');if(!el)return;const n=pool().length;el.textContent=`조건에 맞는 문항 ${n}개 → 이번 세션 ${Math.min(n,setup.n||0)}문항`;}
+function setupScope(items){return items.filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));}
+function sysChips(items){
+  const scope=setupScope(items);
+  const cnt={};scope.forEach(i=>allSys(i).forEach(y=>{cnt[y]=(cnt[y]||0)+1;}));
+  const subjIn=[...new Set(scope.map(i=>i.subject||'미분류'))];
+  subjIn.forEach(s=>Object.keys(TAX[s]||{}).forEach(y=>{if(!cnt[y])cnt[y]=0;}));
+  const ys=Object.keys(cnt).sort(sysSort);if(!ys.length||(ys.length===1&&ys[0]===NOSYS))return'';
+  let h=`<h3>분과 (선택하지 않으면 전체 · 연계 문항 포함)</h3><div class="chips">${ys.map(y=>`<label class="chip${cnt[y]?'':' zero'}"><input type="checkbox" data-set="sys" value="${esc(y)}"${setup.systems.includes(y)?' checked':''}${cnt[y]?'':' disabled'}>${esc(y)} <span class="mut mono">${cnt[y]}</span></label>`).join('')}</div>`;
+  if(!setup.systems.length)return h+`<div class="mut cap">분과를 고르면 그 아래 세부 주제를 선택할 수 있습니다.</div>`;
+  h+=`<h3>세부 주제 (선택하지 않은 분과는 전체 출제)</h3>`;
+  for(const y of [...setup.systems].sort(sysSort)){
+    const subjs=[...new Set([...subjIn.filter(s=>(TAX[s]||{})[y]),...scope.filter(i=>primSys(i)===y).map(i=>i.subject||'미분류')])];
+    for(const s of subjs){
+      const subs=subsFor(s,y,scope);if(!subs.length)continue;
+      const c={};scope.forEach(i=>{if((i.subject||'미분류')===s&&primSys(i)===y){const k=subOf(i);c[k]=(c[k]||0)+1;}});
+      const unsure=scope.filter(i=>(i.subject||'미분류')===s&&primSys(i)===y&&i.subtopic_auto).length;
+      h+=`<div class="subgrp"><div class="subgrp-h">${esc(y)}${subjs.length>1?` <span class="mut">(${esc(s)})</span>`:''}${unsure?` <span class="mut" style="font-weight:400">· 자동 추정 ${unsure}개 포함</span>`:''}</div><div class="chips">${subs.map(x=>{const v=s+'|'+y+'|'+x,n=c[x]||0;
+        return `<label class="chip${n?'':' zero'}"><input type="checkbox" data-set="sub" value="${esc(v)}"${setup.subtopics.includes(v)?' checked':''}${n?'':' disabled'}>${esc(x)} <span class="mut mono">${n}</span></label>`;}).join('')}</div></div>`;
+    }
+  }
+  return h;
+}
 function vSetup(){
   const items=Object.values(S.bank);if(!items.length)return emptyState();
   const subs=[...new Set(items.map(i=>i.subject||'미분류'))].sort();
   const modes=[['smart','스마트: 복습 대기 → 새 문제 → 나머지'],['new','새 문제만'],['due','복습 대기만'],['wrong','최근 틀린 문제'],['danger','치명적 착각만'],['random','전체 랜덤']];
   return `<div class="card"><h2>문제 풀기</h2>
   <h3>과목 (선택하지 않으면 전체)</h3><div class="chips">${subs.map(s=>`<label class="chip"><input type="checkbox" data-set="subj" value="${esc(s)}"${setup.subjects.includes(s)?' checked':''}>${esc(s)}</label>`).join('')}</div>
-  ${(()=>{const scope=items.filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));
-    const cnt={};scope.forEach(i=>allSys(i).forEach(y=>{cnt[y]=(cnt[y]||0)+1;}));
-    const ys=Object.keys(cnt).sort(sysSort);if(!ys.length||(ys.length===1&&ys[0]===NOSYS))return'';
-    return `<h3>분과 (선택하지 않으면 전체 · 연계 문항 포함)</h3><div class="chips">${ys.map(y=>`<label class="chip"><input type="checkbox" data-set="sys" value="${esc(y)}"${setup.systems.includes(y)?' checked':''}>${esc(y)} <span class="mut mono">${cnt[y]}</span></label>`).join('')}</div>`;})()}
+  ${sysChips(items)}
   <div class="row">
    <label class="field">출제 방식<select data-set="mode">${modes.map(([v,l])=>`<option value="${v}"${setup.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>
    <label class="field">문항 수<input type="number" min="1" max="300" data-set="n" value="${setup.n}" style="width:90px"></label>
@@ -640,13 +942,22 @@ function skip(reveal){const id=session.ids[session.i];session.ans[id]={qid:id,sk
 function next(){session.i++;session.choice=null;session.conf=null;session.qt=Date.now();if(session.i>=session.ids.length)session.done=true;render();window.scrollTo(0,0);}
 
 /* ============ 뷰: 문항 추가 ============ */
+function genSubOptions(){
+  const items=Object.values(S.bank);let h='';
+  for(const[subj,T]of Object.entries(TAX))for(const[sys,subs]of Object.entries(T)){
+    const n=x=>items.filter(it=>it.subject===subj&&it.system===sys&&(x==null||it.subtopic===x)).length;
+    h+=`<optgroup label="${esc(subj+' › '+sys)}"><option value="${esc(subj+'|'+sys+'|')}">${esc(sys)} 전체 (${n()})</option>${subs.map(x=>{const c=n(x);return `<option value="${esc(subj+'|'+sys+'|'+x)}">${c?'':'○ '}${esc(x)} (${c})</option>`;}).join('')}</optgroup>`;
+  }
+  return h;
+}
 function vAdd(){
   return `<div class="card"><h2>문항 추가</h2><p class="mut">Gemini가 출력한 JSON을 그대로 붙여넣으세요. \`\`\`json 코드블록이 섞여 있어도, 여러 배치를 한 번에 붙여도 됩니다. /audit 수정본(같은 id)은 기존 문항을 덮어씁니다.</p>
   <textarea id="paste" rows="12" placeholder='{"schema_version":"2.0","batch_meta":{...},"items":[...]}'></textarea>
   <div class="actions"><button class="btn pri" data-act="ingestPaste">붙여넣은 JSON 추가</button><label class="btn ghost">파일에서 추가 (.json)<input type="file" id="files" accept=".json,application/json,text/plain" multiple hidden></label></div>
   <div id="report"></div></div>
-  <div class="card"><h2>Gemini 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다.</p>
-  <div class="row"><label class="field" style="flex:1">주제 (focus)<input type="text" id="rfocus" placeholder="예: 저나트륨혈증"></label>
+  <div class="card"><h2>Gemini 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다. 세부 주제 옆 숫자는 현재 문항 수 — <b>0개인 주제</b>부터 채우면 빈틈이 빨리 메워집니다.</p>
+  <div class="row"><label class="field" style="min-width:220px">분과 › 세부 주제<select id="rsub"><option value="">(지정 안 함)</option>${genSubOptions()}</select></label>
+  <label class="field" style="flex:1">추가 초점 (선택)<input type="text" id="rfocus" placeholder="예: 저나트륨혈증의 교정 속도"></label>
   <label class="field">문항 수<input type="number" id="rn" value="10" min="1" max="10" style="width:80px"></label>
   <label class="field">난이도<select id="rlv"><option value="mixed">mixed (기본 배분)</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}</option>`).join('')}</select></label></div>
   <div class="actions"><button class="btn" data-act="genReq">/generate 요청문 복사</button><button class="btn ghost" data-act="copyCoverage">/coverage 패킷 복사</button><button class="btn ghost" data-act="copyWeak">/weakness 패킷 복사</button></div></div>`;
@@ -659,6 +970,7 @@ function browseList(){
   let list=Object.values(S.bank).filter(it=>{
     if(browse.subj&&(it.subject||'미분류')!==browse.subj)return false;
     if(browse.sys&&!allSys(it).includes(browse.sys))return false;
+    if(browse.sys&&browse.sub&&!(primSys(it)===browse.sys&&subOf(it)===browse.sub))return false;
     const st=sm[it.id];
     switch(browse.status){
       case 'new':if(st)return false;break;
@@ -666,25 +978,43 @@ function browseList(){
       case 'danger':if(!dangerOpen(st))return false;break;
       case 'flag':if(!S.flags[it.id])return false;break;
       case 'review':if(!(it.needs_review||(it.generator_confidence&&it.generator_confidence!=='high')))return false;break;
+      case 'unsure':if(!needsClass(it))return false;break;
     }
-    if(q){const hay=[it.id,it.topic,it.system,it.subject,it.learning_objective,it.stem,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(q))return false;}
+    if(q){const hay=[it.id,it.topic,it.system,it.subtopic,it.subject,it.learning_objective,it.stem,(it.misconception_tags||[]).join(' ')].join(' ').toLowerCase();if(!hay.includes(q))return false;}
     return true;
   }).sort((a,b)=>(b._added||0)-(a._added||0));
   const total=list.length;list=list.slice(0,browse.limit);
   const rows=list.map(it=>{const st=sm[it.id],ic=!st?'○':dangerOpen(st)?'⚠️':st.last.correct?'✅':'❌';
-    return `<details class="qd" data-id="${esc(it.id)}" data-ctx="browse"><summary><span>${ic}</span><span class="mono mut">${esc(it.id)}</span><span>${esc(it.topic||'')}</span><span class="mut">${esc(norm(it.learning_objective||it.stem).slice(0,55))}</span><span class="bdg">${st?`${st.c}/${st.n}`:'미풀이'}</span>${it.difficulty?`<span class="bdg">Lv${it.difficulty}</span>`:''}${S.flags[it.id]?'<span class="bdg warn">🚩</span>':''}</summary><div class="dbody"></div></details>`;}).join('');
+    return `<details class="qd" data-id="${esc(it.id)}" data-ctx="browse"><summary><span>${ic}</span><span class="mono mut">${esc(it.id)}</span><span class="mut">${esc([it.system,it.subtopic].filter(Boolean).join(' › '))}${it.subtopic_auto?'?':''}</span><span>${esc(it.topic||'')}</span><span class="mut">${esc(norm(it.learning_objective||it.stem).slice(0,55))}</span><span class="bdg">${st?`${st.c}/${st.n}`:'미풀이'}</span>${it.difficulty?`<span class="bdg">Lv${it.difficulty}</span>`:''}${S.flags[it.id]?'<span class="bdg warn">🚩</span>':''}</summary><div class="dbody"></div></details>`;}).join('');
   return `<div class="mut" style="margin-bottom:8px">${total}개 중 ${list.length}개 표시 · 펼치면 정답과 전 선지 해설이 보입니다</div>${rows||'<div class="mut">해당 문항 없음</div>'}${total>list.length?'<button class="btn ghost" data-act="more">더 보기</button>':''}`;
 }
 function vBrowse(){
   if(!Object.keys(S.bank).length)return emptyState();
   const subs=[...new Set(Object.values(S.bank).map(i=>i.subject||'미분류'))].sort();
-  const sts=[['all','전체'],['new','미풀이'],['wrong','최근 오답'],['danger','치명적 착각'],['flag','🚩 신고됨'],['review','검토 필요']];
+  const sts=[['all','전체'],['new','미풀이'],['wrong','최근 오답'],['danger','치명적 착각'],['flag','🚩 신고됨'],['review','검토 필요'],['unsure','세부 주제 추정·미지정']];
+  const items=Object.values(S.bank);
+  const bsubs=browse.sys?[...new Set(Object.keys(Object.fromEntries(items.map(i=>[i.subject||'미분류',1]))).flatMap(s=>subsFor(s,browse.sys,items)))]:[];
   return `<div class="card"><h2>문항 목록</h2><div class="row">
   <input type="text" data-b="q" value="${esc(browse.q)}" placeholder="검색: 주제·LO·본문·태그·ID" style="flex:1;min-width:200px">
   <select data-b="subj"><option value="">전체 과목</option>${subs.map(s=>`<option${browse.subj===s?' selected':''}>${esc(s)}</option>`).join('')}</select>
   <select data-b="sys"><option value="">전체 분과</option>${[...new Set(Object.values(S.bank).flatMap(allSys))].sort(sysSort).map(y=>`<option${browse.sys===y?' selected':''}>${esc(y)}</option>`).join('')}</select>
+  ${browse.sys&&bsubs.length?`<select data-b="sub"><option value="">${esc(browse.sys)} 전체 세부 주제</option>${bsubs.map(x=>`<option${browse.sub===x?' selected':''}>${esc(x)}</option>`).join('')}</select>`:''}
   <select data-b="status">${sts.map(([v,l])=>`<option value="${v}"${browse.status===v?' selected':''}>${l}</option>`).join('')}</select></div>
   <div id="blist">${browseList()}</div></div>`;
+}
+function rcRead(box){const g=k=>{const el=box.querySelector(`[data-rc="${k}"]`);return el?el.value:'';};return{subj:g('subj'),sys:g('sys'),sub:g('sub'),rel:g('rel')};}
+function rcEditor(id,d){
+  const it=S.bank[id];if(!it)return'';
+  d=d||{subj:it.subject||'',sys:it.system||'',sub:it.subtopic||'',rel:(it.related_systems||[]).join(', ')};
+  const subjects=[...new Set([...Object.keys(TAX),...Object.keys(SUBJ_ALIASES),d.subj].filter(Boolean))];
+  const T=TAX[d.subj];
+  const sysCtl=T?`<select data-rc="sys"><option value="">(미지정)</option>${Object.keys(T).map(y=>`<option${d.sys===y?' selected':''}>${esc(y)}</option>`).join('')}</select>`:`<input type="text" data-rc="sys" value="${esc(d.sys)}" placeholder="예: 간담췌">`;
+  const subs=T?subList(d.subj,d.sys):[];
+  const subCtl=T?`<select data-rc="sub"><option value="">(미지정)</option>${subs.map(x=>`<option${d.sub===x?' selected':''}>${esc(x)}</option>`).join('')}</select>`:`<input type="text" data-rc="sub" value="${esc(d.sub)}">`;
+  return `<div class="rc" data-rcid="${esc(id)}"><label class="field">과목<select data-rc="subj">${subjects.map(s=>`<option${d.subj===s?' selected':''}>${esc(s)}</option>`).join('')}</select></label>
+  <label class="field">주 분과${sysCtl}</label><label class="field">세부 주제${subCtl}</label>
+  <label class="field" style="flex:1;min-width:160px">연계 분과 (쉼표로 구분)<input type="text" data-rc="rel" value="${esc(d.rel)}" placeholder="예: 내분비"></label>
+  <button class="btn pri sm" data-act="rcSave" data-id="${esc(id)}">저장</button></div>`;
 }
 function detailBody(it,choice,ctx){
   let h=`<div class="qhead">${badges(it)}</div>`+qBody(it,{interactive:false,choice})+explanation(it,choice);
@@ -747,18 +1077,22 @@ app.addEventListener('click',async e=>{
     case 'next':next();break;
     case 'endSession':if(confirm('세션을 종료하고 결과를 볼까요? (안 푼 문항도 해설은 볼 수 있습니다)')){session.done=true;render();window.scrollTo(0,0);}break;
     case 'start':startSession(pool().slice(0,Math.max(1,setup.n||20)));break;
-    case 'quick':setup.mode=b.dataset.mode;startSession(pool().slice(0,20));break;
+    case 'quick':startSession(pool(Object.assign(JSON.parse(JSON.stringify(FILTER0)),{mode:b.dataset.mode})).slice(0,20));break;
+    case 'toggleSys':{const k=b.dataset.k;dashOpen.has(k)?dashOpen.delete(k):dashOpen.add(k);render();break;}
+    case 'copyClassify':copy(classifyPacket());break;
     case 'newSession':session=null;render();break;
     case 'solo':startSession([id]);break;
     case 'flag':toggleFlag(id);break;
     case 'del':delItem(id);break;
     case 'reclass':{
-      const it=S.bank[id];if(!it)break;
-      const subj=prompt('과목 (예: 내과, 외과, 소아청소년과)',it.subject||'');if(subj===null)break;
-      const sys=prompt(`주 분과 1개\n내과 표준명: ${SYS_ORDER.join(', ')}\n(비우면 미지정)`,it.system||'');if(sys===null)break;
-      const rel=prompt('연계 분과 (다학제 문항일 때, 쉼표로 구분. 없으면 비움)',(it.related_systems||[]).join(', '));if(rel===null)break;
-      it.subject=subj;it.system=sys;it.related_systems=rel;normClass(it);
-      await save('bank');toast(`분류 변경: ${it.subject} › ${primSys(it)}${it.related_systems.length?' + '+it.related_systems.join(', '):''}`);refreshList();
+      const body=b.closest('.dbody');if(!body)break;const ex=body.querySelector('.rc');
+      if(ex)ex.remove();else b.closest('.actions').insertAdjacentHTML('afterend',rcEditor(id));
+      break;}
+    case 'rcSave':{
+      const it=S.bank[id],box=b.closest('.rc');if(!it||!box)break;const d=rcRead(box);
+      it.subject=d.subj;it.system=d.sys;it.subtopic=d.sub;it.related_systems=d.rel;delete it.subtopic_auto;normClass(it);
+      await save('bank');toast(`분류 저장: ${[it.subject,primSys(it),it.subtopic].filter(Boolean).join(' › ')}${it.related_systems.length?' + 연계 '+it.related_systems.join(', '):''}`);
+      const body=box.closest('.dbody');if(body){const det=body.closest('details');body.innerHTML=detailBody(it,det&&det.hasAttribute('data-choice')?(det.dataset.choice||null):lastChoice(it.id),det?det.dataset.ctx:'');}
       break;}
     case 'more':browse.limit+=50;$('#blist').innerHTML=browseList();break;
     case 'copyMD':copy(sessionMD());break;
@@ -782,9 +1116,12 @@ function onSetup(t){
   if(k==='subj'){setup.subjects=[...app.querySelectorAll('[data-set=subj]:checked')].map(x=>x.value);
     // 과목이 바뀌면 분과 목록도 바뀌므로 다시 그림. 범위 밖으로 나간 분과 선택은 해제
     const scope=Object.values(S.bank).filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));
-    const valid=new Set(scope.flatMap(allSys));setup.systems=setup.systems.filter(y=>valid.has(y));
+    const valid=new Set(scope.flatMap(allSys));setup.systems=setup.systems.filter(y=>valid.has(y));setup.subtopics=setup.subtopics.filter(v=>setup.systems.includes(v.split('|')[1]));
     if(!onSetup._busy){onSetup._busy=true;render();onSetup._busy=false;}return;}
-  else if(k==='sys')setup.systems=[...app.querySelectorAll('[data-set=sys]:checked')].map(x=>x.value);
+  else if(k==='sys'){setup.systems=[...app.querySelectorAll('[data-set=sys]:checked')].map(x=>x.value);
+    setup.subtopics=setup.subtopics.filter(v=>setup.systems.includes(v.split('|')[1]));
+    if(!onSetup._busy){onSetup._busy=true;render();onSetup._busy=false;}return;}
+  else if(k==='sub')setup.subtopics=[...app.querySelectorAll('[data-set=sub]:checked')].map(x=>x.value);
   else if(k==='exFlag')setup.exFlag=t.checked;
   else if(k==='showMeta'){S.meta.showMeta=t.checked;save('meta');return;}
   else if(k==='n'||k==='dmin'||k==='dmax')setup[k]=Number(t.value)||0;
@@ -795,7 +1132,8 @@ app.addEventListener('input',e=>{const t=e.target;if(t.dataset.set)onSetup(t);if
 app.addEventListener('change',async e=>{
   const t=e.target;
   if(t.dataset.set){onSetup(t);return;}
-  if(t.dataset.b&&t.tagName==='SELECT'){browse[t.dataset.b]=t.value;browse.limit=50;$('#blist').innerHTML=browseList();return;}
+  if(t.dataset.b&&t.tagName==='SELECT'){browse[t.dataset.b]=t.value;browse.limit=50;if(t.dataset.b==='sys'){browse.sub='';render();}else $('#blist').innerHTML=browseList();return;}
+  if(t.dataset.rc&&(t.dataset.rc==='subj'||t.dataset.rc==='sys')){const box=t.closest('.rc');box.outerHTML=rcEditor(box.dataset.rcid,rcRead(box));return;}
   if(t.id!=='files'&&t.id!=='bfile')return;
   const files=[...t.files],parsed=[],errs=[];
   for(const f of files){

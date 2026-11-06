@@ -3,155 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#f7f8f9">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="KMLE QBank">
 <title>KMLE QBank</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--bg:#0f172a;--panel:#1e293b;--panel2:#162032;--line:#334155;--tx:#e2e8f0;--mut:#94a3b8;--acc:#38bdf8;--ok:#22c55e;--bad:#ef4444;--warn:#f59e0b;--vio:#a78bfa;
---mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-text-size-adjust:100%}
-header{position:sticky;top:0;z-index:10;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
-.hwrap{max-width:960px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.logo{font-family:var(--mono);font-weight:600;color:var(--acc);letter-spacing:.5px;white-space:nowrap}
-nav{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none}
-nav::-webkit-scrollbar{display:none}
-nav a{color:var(--mut);text-decoration:none;padding:6px 10px;border-radius:8px;white-space:nowrap;font-size:14px}
-nav a.on{background:var(--panel);color:var(--tx)}
-main{max-width:960px;margin:0 auto;padding:20px 16px 80px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
-h2{font-size:19px;margin:0 0 12px}
-h3{font-size:14px;margin:12px 0 8px;color:var(--mut);font-weight:600}
-p{margin:6px 0}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
-.stat{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px}
-.stat .n{font-family:var(--mono);font-size:22px;font-weight:600}
-.stat .l{color:var(--mut);font-size:13px}
-.btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--tx);padding:9px 14px;border-radius:10px;font:inherit;font-size:14px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;line-height:1.3}
-.btn:hover{border-color:#64748b}
-.btn.pri{background:var(--acc);border-color:var(--acc);color:#04121f;font-weight:600}
-.btn.pri:disabled{opacity:.35;cursor:not-allowed}
-.btn.ghost{background:transparent}
-.btn.dangerb{border-color:#991b1b;color:#fca5a5;background:#2a0b0b}
-.btn.sm{padding:4px 10px;font-size:13px}
-.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-.actions.sticky{position:sticky;bottom:12px;background:rgba(30,41,59,.96);padding:10px;border-radius:12px;border:1px solid var(--line)}
-.qhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:13px}
-.qhead .end{margin-left:auto}
-.bdg{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;border:1px solid var(--line);color:var(--mut);background:var(--panel2);white-space:nowrap}
-.bdg.ok{color:#86efac;border-color:#166534;background:#052e16}
-.bdg.me{color:#7dd3fc;border-color:#075985;background:#082f49}
-.bdg.warn{color:#fcd34d;border-color:#78350f;background:#1c1405}
-.bdg.vio{color:#c4b5fd;border-color:#4c1d95;background:#1e1036}
-.tbl tr.sub td{font-weight:600;background:#182337}
-.tbl tr.sys td:first-child{padding-left:22px}
-.tbl tr.sys td:first-child::before{content:'↳ ';color:var(--mut)}
-.tbl tr.weak td:first-child{color:#fca5a5}
-.tbl tr.st td:first-child{padding-left:46px;font-size:13.5px}
-.tbl tr.st td{font-size:13.5px}
-.tbl tr.zero td{opacity:.42}
-.tbl tr.tog{cursor:pointer}
-.tbl tr.tog:hover td{background:#1b2a40}
-.caret{color:var(--acc);font-size:12px}
-.tbl tr.sys.tog td:first-child::before{content:''}
-.cov{font-size:11.5px;color:var(--mut);margin-left:4px}
-.subgrp{margin:6px 0 10px}
-.subgrp-h{font-size:12.5px;color:var(--acc);margin:4px 0 6px;font-weight:600}
-.chip.zero{opacity:.4;cursor:default}
-.chip.unsure{border-style:dashed}
-.rc{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:12px;padding:12px;border:1px dashed var(--line);border-radius:10px}
-.cap{font-size:12.5px;margin-top:6px}
-.stem{font-size:16.5px;margin-bottom:12px}
-.qq{font-weight:600;margin:14px 0 10px}
-.findings{background:var(--panel2);border-left:3px solid var(--vio);padding:10px 12px;border-radius:8px;margin:10px 0;font-size:15px}
-.tbl{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
-.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
-.tbl th{color:var(--mut);font-weight:500}
-.tblwrap{overflow-x:auto}
-.opts{display:flex;flex-direction:column;gap:8px}
-.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;background:var(--panel2);border:1.5px solid var(--line);color:var(--tx);border-radius:12px;padding:12px 14px;font:inherit;cursor:pointer;line-height:1.5}
-.opt:hover:not(:disabled){border-color:#64748b}
-.opt.sel{border-color:var(--acc);background:#0c2a3d}
-.opt.ok{border-color:var(--ok);background:#052e16}
-.opt.bad{border-color:var(--bad);background:#3b0a0a}
-.opt.dim{opacity:.6}
-.opt:disabled{cursor:default;color:var(--tx)}
-.ol{font-family:var(--mono);color:var(--mut);min-width:1.4em}
-.conf{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
-.seg button{background:var(--panel2);color:var(--mut);border:0;border-right:1px solid var(--line);padding:8px 12px;font:inherit;font-size:14px;cursor:pointer}
-.seg button:last-child{border-right:0}
-.seg button.on{background:var(--acc);color:#04121f;font-weight:600}
-.hint{font-size:12px;margin-top:8px}
-.banner{border-radius:12px;padding:12px 14px;margin:16px 0 4px;font-size:15px;border:1px solid}
-.banner.ok{background:#052e16;border-color:#166534;color:#bbf7d0}
-.banner.bad{background:#3b0a0a;border-color:#7f1d1d;color:#fecaca}
-.banner.danger{background:linear-gradient(135deg,#450a0a,#7f1d1d);border-color:#ef4444;color:#fff}
-.banner.luck{background:#3a2a05;border-color:#92400e;color:#fde68a}
-.banner.info{background:var(--panel2);border-color:var(--line);color:var(--mut)}
-.exp{margin-top:14px}
-.exp h4{font-size:12px;letter-spacing:.8px;color:var(--mut);margin:20px 0 8px;font-family:var(--mono);font-weight:600}
-.takeaway{background:#1c1a0b;border:1px solid #713f12;border-left:4px solid var(--warn);padding:12px 14px;border-radius:10px;font-weight:600;color:#fef3c7}
-.takeaway .k{display:block;font-family:var(--mono);font-size:11px;color:var(--warn);letter-spacing:1px;margin-bottom:2px}
-.lo{font-size:14px;margin:10px 0 0}
-.chain{list-style:none;padding:0;margin:0;counter-reset:c}
-.chain li{position:relative;padding:8px 12px 8px 38px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;margin-bottom:22px;counter-increment:c;font-size:15px}
-.chain li::before{content:counter(c);position:absolute;left:12px;top:8px;font-family:var(--mono);color:var(--acc);font-size:13px}
-.chain li:not(:last-child)::after{content:'↓';position:absolute;left:50%;bottom:-21px;color:var(--mut);font-size:14px}
-.chain li:last-child{margin-bottom:0;border-color:#0e7490}
-.oa{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--panel2)}
-.oa.ans{border-color:var(--ok)}
-.oa.mine{border-color:var(--bad)}
-.oah{display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;font-weight:600;margin-bottom:6px}
-.oat{flex:1;min-width:55%}
-.oa dl{margin:0;display:grid;grid-template-columns:96px 1fr;gap:6px 12px;font-size:14.5px}
-.oa dt{color:var(--mut);font-size:13px}
-.oa dd{margin:0}
-@media(max-width:600px){.oa dl{grid-template-columns:1fr;gap:2px}.oa dt{margin-top:6px}}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font-size:13.5px;background:var(--panel2);cursor:pointer;color:var(--tx);text-decoration:none}
-.chip.link{color:#7dd3fc}
-.meta{margin-top:16px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;border-top:1px dashed var(--line);padding-top:12px}
-.warn{color:#fcd34d}.bad-t{color:#fca5a5}.mut{color:var(--mut)}.mono{font-family:var(--mono)}
-code{font-family:var(--mono);font-size:12.5px;background:#0b1222;border:1px solid var(--line);padding:1px 6px;border-radius:6px;color:#c4b5fd;word-break:break-all}
-.row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin:12px 0}
-.field{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
-input[type=text],input[type=number],select,textarea{background:#0b1222;border:1px solid var(--line);color:var(--tx);border-radius:10px;padding:9px 11px;font:inherit;font-size:14px;max-width:100%}
-textarea{width:100%;font-family:var(--mono);font-size:12.5px;resize:vertical}
-details.qd{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:var(--panel2)}
-details.qd>summary{cursor:pointer;padding:10px 14px;list-style:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:14px}
-details.qd>summary::-webkit-details-marker{display:none}
-details.qd[open]>summary{border-bottom:1px solid var(--line)}
-.dbody{padding:14px}
-.bar{height:8px;background:#0b1222;border-radius:4px;overflow:hidden;min-width:70px}
-.bar>i{display:block;height:100%;background:var(--acc)}
-#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#0b1222;border:1px solid var(--line);color:var(--tx);padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:50;font-size:14px;max-width:90vw}
-#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.err{border-color:var(--bad)}
-.empty{text-align:center;padding:40px 18px}
-.rep div{margin:4px 0;font-size:14px}
-footer{max-width:960px;margin:0 auto;padding:0 16px 40px;color:#475569;font-size:12px;font-family:var(--mono)}
-</style>
+<link rel="stylesheet" href="workspace.css">
 </head>
 <body>
-<header><div class="hwrap"><span class="logo">KMLE·QBank</span>
-<nav>
-<a href="#dash" data-r="dash">대시보드</a>
-<a href="#quiz" data-r="quiz">문제 풀기</a>
-<a href="#add" data-r="add">문항 추가</a>
-<a href="#browse" data-r="browse">문항 목록</a>
-<a href="#backup" data-r="backup">백업·동기화</a>
-</nav></div></header>
-<main id="app"></main>
-<footer>KMLE QBank v1.0 · 데이터는 이 기기 브라우저에 저장됩니다 · 주 1회 백업 권장</footer>
-<div id="toast"></div>
+<a class="skip-link" href="#app">본문으로 건너뛰기</a>
+<aside class="sidebar" aria-label="사이드바"></aside>
+<button class="mobile-scrim" data-w="close-menu" aria-label="메뉴 닫기"></button>
+<header class="workspace-topbar"></header>
+<main id="app" class="app-main" tabindex="-1"></main>
+<footer class="app-footer"></footer>
+<div id="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
 /* ============ 상수 & 유틸 ============ */
@@ -172,7 +43,7 @@ function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random
 function toast(msg,type){const t=$('#toast');t.textContent=msg;t.className='show '+(type||'');clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className='';},2800);}
 async function copy(text){
   if(!text) return;
-  try{await navigator.clipboard.writeText(text);toast('클립보드에 복사됨 — Gemini에 붙여넣으세요');}
+  try{await navigator.clipboard.writeText(text);toast('클립보드에 복사됨 — 사용할 AI 대화에 붙여넣으세요');}
   catch(e){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
     try{document.execCommand('copy');toast('클립보드에 복사됨');}catch(_){toast('복사 실패','err');}ta.remove();}
 }
@@ -448,7 +319,7 @@ function subsFor(subj,sys,items){
 const S={bank:{},attempts:[],srs:{},flags:{},meta:{batches:[],deleted:[]}};
 let route=location.hash.slice(1)||'dash';
 let session=null;
-const FILTER0={subjects:[],systems:[],subtopics:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
+const FILTER0={track:'kmle',subjects:[],systems:[],subtopics:[],mode:'smart',n:20,dmin:1,dmax:10,kw:'',exFlag:true};
 const setup=JSON.parse(JSON.stringify(FILTER0));
 const browse={q:'',subj:'',sys:'',sub:'',status:'all',limit:50};
 const dashOpen=new Set();
@@ -491,7 +362,7 @@ function parseInput(text){
     b=b.trim();const s=b.search(/[\[{]/);if(s<0)continue;b=b.slice(s);
     const e=Math.max(b.lastIndexOf('}'),b.lastIndexOf(']'));if(e<0)continue;b=b.slice(0,e+1);
     try{out.push(JSON.parse(b));}
-    catch(e1){try{out.push(JSON.parse(b.replace(/,\s*([}\]])/g,'$1')));}catch(e2){throw new Error('JSON 해석 실패: '+e1.message+' — Gemini에게 "유효한 JSON으로 다시 출력"을 요청하세요.');}}
+    catch(e1){try{out.push(JSON.parse(b.replace(/,\s*([}\]])/g,'$1')));}catch(e2){throw new Error('JSON 해석 실패: '+e1.message+' — 사용하는 AI에게 "유효한 JSON으로 다시 출력"을 요청하세요.');}}
   }
   if(!out.length)throw new Error('JSON을 찾지 못했습니다.');
   return out;
@@ -819,6 +690,8 @@ function pool(f=setup){
   const sm=statsMap(),now=Date.now(),kw=(f.kw||'').trim().toLowerCase();
   const subSel=new Set(f.subtopics||[]),sysWithSub=new Set([...subSel].map(k=>k.split('|').slice(0,2).join('|')));
   let ids=Object.values(S.bank).filter(it=>{
+    if(f.track==='kmle'&&it.block_id)return false;
+    if(f.track==='school'&&!it.block_id)return false;
     if(f.subjects.length&&!f.subjects.includes(it.subject||'미분류'))return false;
     if(f.systems.length){
       const M=allSys(it).filter(y=>f.systems.includes(y));if(!M.length)return false;
@@ -844,7 +717,7 @@ function pool(f=setup){
 function updatePool(){const el=$('#poolInfo');if(!el)return;const n=pool().length;el.textContent=`조건에 맞는 문항 ${n}개 → 이번 세션 ${Math.min(n,setup.n||0)}문항`;}
 function setupScope(items){return items.filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));}
 function sysChips(items){
-  const scope=setupScope(items);
+  const scope=setupScope(items).filter(it=>setup.track==='all'||(setup.track==='school'?!!it.block_id:!it.block_id));
   const cnt={};scope.forEach(i=>allSys(i).forEach(y=>{cnt[y]=(cnt[y]||0)+1;}));
   const subjIn=[...new Set(scope.map(i=>i.subject||'미분류'))];
   subjIn.forEach(s=>Object.keys(TAX[s]||{}).forEach(y=>{if(!cnt[y])cnt[y]=0;}));
@@ -869,7 +742,7 @@ function vSetup(){
   const subs=[...new Set(items.map(i=>i.subject||'미분류'))].sort();
   const modes=[['smart','스마트: 복습 대기 → 새 문제 → 나머지'],['new','새 문제만'],['due','복습 대기만'],['wrong','최근 틀린 문제'],['danger','치명적 착각만'],['random','전체 랜덤']];
   return `<div class="card"><h2>문제 풀기</h2>
-  <h3>과목 (선택하지 않으면 전체)</h3><div class="chips">${subs.map(s=>`<label class="chip"><input type="checkbox" data-set="subj" value="${esc(s)}"${setup.subjects.includes(s)?' checked':''}>${esc(s)}</label>`).join('')}</div>
+  <label class="field" style="margin-bottom:18px">학습 구분<select data-set="track"><option value="kmle"${setup.track==='kmle'?' selected':''}>KMLE</option><option value="school"${setup.track==='school'?' selected':''}>학교 블록</option><option value="all"${setup.track==='all'?' selected':''}>전체</option></select></label><h3>과목 (선택하지 않으면 전체)</h3><div class="chips">${subs.map(s=>`<label class="chip"><input type="checkbox" data-set="subj" value="${esc(s)}"${setup.subjects.includes(s)?' checked':''}>${esc(s)}</label>`).join('')}</div>
   ${sysChips(items)}
   <div class="row">
    <label class="field">출제 방식<select data-set="mode">${modes.map(([v,l])=>`<option value="${v}"${setup.mode===v?' selected':''}>${l}</option>`).join('')}</select></label>
@@ -951,11 +824,11 @@ function genSubOptions(){
   return h;
 }
 function vAdd(){
-  return `<div class="card"><h2>문항 추가</h2><p class="mut">Gemini가 출력한 JSON을 그대로 붙여넣으세요. \`\`\`json 코드블록이 섞여 있어도, 여러 배치를 한 번에 붙여도 됩니다. /audit 수정본(같은 id)은 기존 문항을 덮어씁니다.</p>
+  return `<div class="card"><h2>문항 추가</h2><p class="mut">사용하는 AI에서 받은 문항 JSON을 붙여넣으세요. 학교 시험 문항은 해당 블록에서 가져오면 시험범위와 연결됩니다. \`\`\`json 코드블록이 섞여 있어도, 여러 배치를 한 번에 붙여도 됩니다. /audit 수정본(같은 id)은 기존 문항을 덮어씁니다.</p>
   <textarea id="paste" rows="12" placeholder='{"schema_version":"2.0","batch_meta":{...},"items":[...]}'></textarea>
   <div class="actions"><button class="btn pri" data-act="ingestPaste">붙여넣은 JSON 추가</button><label class="btn ghost">파일에서 추가 (.json)<input type="file" id="files" accept=".json,application/json,text/plain" multiple hidden></label></div>
   <div id="report"></div></div>
-  <div class="card"><h2>Gemini 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다. 세부 주제 옆 숫자는 현재 문항 수 — <b>0개인 주제</b>부터 채우면 빈틈이 빨리 메워집니다.</p>
+  <div class="card"><h2>AI 학습 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다. 세부 주제 옆 숫자는 현재 문항 수 — <b>0개인 주제</b>부터 채우면 빈틈이 빨리 메워집니다.</p>
   <div class="row"><label class="field" style="min-width:220px">분과 › 세부 주제<select id="rsub"><option value="">(지정 안 함)</option>${genSubOptions()}</select></label>
   <label class="field" style="flex:1">추가 초점 (선택)<input type="text" id="rfocus" placeholder="예: 저나트륨혈증의 교정 속도"></label>
   <label class="field">문항 수<input type="number" id="rn" value="10" min="1" max="10" style="width:80px"></label>
@@ -1024,12 +897,12 @@ function detailBody(it,choice,ctx){
 
 /* ============ 뷰: 백업·동기화 ============ */
 function vBackup(){
-  return `<div class="card"><h2>전체 백업</h2><p class="mut">문항 + 풀이 기록 + 복습 일정 + 신고를 하나의 파일로 저장합니다. 브라우저 데이터는 캐시 삭제·기기 변경 시 사라질 수 있으니 <b>주 1회</b> 받아서 Google Drive 등에 보관하세요. 다른 기기로 옮길 때도 이 파일을 가져오기 하면 됩니다.</p>
+  return `<div class="card"><h2>전체 백업</h2><p class="mut">문항 + 풀이 기록 + 복습 일정 + 신고 + 추론 노트 + 북마크 + 블록 시험범위 + 실기 기록을 JSON 파일로 저장합니다. <b>강의 PDF·PPT·녹음 원본은 이 JSON에 포함되지 않습니다.</b> 원본은 학교 블록시험의 자료 묶음 ZIP으로 별도 보관하세요. 브라우저 데이터는 캐시 삭제·기기 변경 시 사라질 수 있으니 <b>주 1회</b> 받아서 Google Drive 등에 보관하세요. 다른 기기로 옮길 때도 이 파일을 가져오기 하면 됩니다.</p>
   <div class="actions"><button class="btn pri" data-act="exportBackup">전체 백업 내보내기</button><label class="btn">백업 가져오기 (병합)<input type="file" id="bfile" accept=".json,application/json" hidden></label></div>
   <div class="mut" id="est" style="margin-top:10px"></div></div>
   <div class="card"><h2>GitHub 저장소로 문항 동기화</h2><p class="mut"><b>bank.json</b>을 내보내 GitHub 저장소 최상위에 올리면, 어느 기기에서 사이트를 열든 문항이 자동으로 합쳐집니다. (풀이 기록은 올라가지 않습니다 — 기록 이동은 위의 전체 백업을 쓰세요.) 공개 저장소라면 bank.json도 공개된다는 점을 기억하세요.</p>
   <div class="actions"><button class="btn" data-act="exportBank">bank.json 내보내기</button></div></div>
-  <div class="card"><h2>초기화</h2><p class="mut">이 기기의 모든 문항과 기록을 지웁니다. 되돌릴 수 없습니다.</p><div class="actions"><button class="btn dangerb" data-act="reset">모두 삭제</button></div></div>`;
+  <div class="card"><h2>초기화</h2><p class="mut">이 브라우저의 모든 문항, 기록, 블록 자료 원본을 지웁니다. 되돌릴 수 없습니다.</p><div class="actions"><button class="btn dangerb" data-act="reset">모두 삭제</button></div></div>`;
 }
 function mergeBackup(b){
   let items=0,atts=0;
@@ -1108,11 +981,12 @@ app.addEventListener('click',async e=>{
       break;}
     case 'exportBackup':download(`kmle-backup-${dstr(Date.now())}.json`,{schema:'kmle-qbank-backup',version:1,exported_at:new Date().toISOString(),bank:S.bank,attempts:S.attempts,srs:S.srs,flags:S.flags,meta:S.meta});break;
     case 'exportBank':download('bank.json',{schema:'kmle-qbank-bank',version:1,exported_at:new Date().toISOString(),count:Object.keys(S.bank).length,items:Object.values(S.bank).map(strip)});break;
-    case 'reset':if(prompt('정말 모두 지우려면 "삭제"라고 입력하세요. (먼저 백업을 내보내세요)')==='삭제'){S.bank={};S.attempts=[];S.srs={};S.flags={};S.meta={batches:[],deleted:[]};session=null;await saveAll();toast('초기화됨');render();}break;
+    case 'reset':if(prompt('정말 모두 지우려면 "삭제"라고 입력하세요. (먼저 백업을 내보내세요)')==='삭제'){await clearCampusAssets();S.bank={};S.attempts=[];S.srs={};S.flags={};S.meta={batches:[],deleted:[]};session=null;await saveAll();toast('초기화됨');render();}break;
   }
 });
 function onSetup(t){
   const k=t.dataset.set;
+  if(k==='track'){setup.track=t.value;render();return;}
   if(k==='subj'){setup.subjects=[...app.querySelectorAll('[data-set=subj]:checked')].map(x=>x.value);
     // 과목이 바뀌면 분과 목록도 바뀌므로 다시 그림. 범위 밖으로 나간 분과 선택은 해제
     const scope=Object.values(S.bank).filter(i=>!setup.subjects.length||setup.subjects.includes(i.subject||'미분류'));
@@ -1164,8 +1038,13 @@ document.addEventListener('keydown',e=>{
   }else if(k==='enter'){e.preventDefault();next();}
 });
 
+</script>
+<script src="workspace.js"></script>
+<script src="campus.js"></script>
+<script>
 /* ============ 시작 ============ */
 (async()=>{app.innerHTML='<div class="card mut">불러오는 중…</div>';await loadLocal();render();syncRemote();})();
 </script>
 </body>
 </html>
+

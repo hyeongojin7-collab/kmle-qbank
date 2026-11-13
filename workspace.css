@@ -191,3 +191,21 @@ input[type=checkbox] { accent-color: var(--acc); }
   .goal-ring strong { font-size: 17px; }
   .goal-inline { font-size: 13px; }
 }
+
+.round-entry,.round-card,.recall-panel { line-height:1.65; word-break:keep-all; overflow-wrap:anywhere; }
+.round-entry { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:20px 24px; margin:18px 0 26px; border:1px solid #c5dcdd; border-radius:14px; background:#f2f8f8; }
+.round-entry h2,.round-card h2 { margin:5px 0 8px; font-size:21px; }
+.round-entry p,.round-card p { margin:6px 0; }
+.round-setting { color:#326368; font-size:13px; font-weight:650; }
+.round-layout { max-width:760px; }
+.round-card { padding:clamp(18px,3vw,32px); font-size:16px; margin-bottom:16px; }
+.round-card .round-call { font-size:clamp(18px,2vw,21px); line-height:1.65; margin:12px 0; }
+.round-vitals,.round-choices { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+.round-vitals span { padding:4px 10px; background:#edf4f5; border-radius:6px; color:#234d53; font-variant-numeric:tabular-nums; }
+.round-choice { min-height:44px; text-align:start; white-space:normal; }
+.round-field,.recall-panel label { display:block; font-weight:600; margin:16px 0; }
+.round-field textarea,.recall-panel textarea { width:100%; margin:8px 0; font:inherit; font-weight:400; }
+.round-observation,.round-response,.round-own { margin:12px 0; padding:10px 14px; border-inline-start:3px solid #68a0a5; background:#f6f9fa; }
+.round-card h3,.recall-panel h3 { font-size:17px; color:var(--text); }
+.round-sources a { display:inline-block; margin-top:12px; font-size:13px; }
+.recall-panel { border-top:1px solid var(--line); margin-top:20px; padding-top:8px; }

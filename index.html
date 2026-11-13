@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="KMLE QBank">
 <title>KMLE QBank</title>
 <link rel="preload" href="assets/fonts/SUIT-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="workspace.css?v=b7499427">
+<link rel="stylesheet" href="workspace.css?v=rounds1">
 </head>
 <body>
 <a class="skip-link" href="#app">본문으로 건너뛰기</a>
@@ -480,7 +480,8 @@ function weaknessPacket(atts,onlyUnresolved){
   for(const a of atts){if(a.skipped||a.correct)continue;const e=by[a.qid]||(by[a.qid]={w:0,d:0,ch:new Set(),lastConf:a.conf});e.w++;if(a.conf===3)e.d++;e.ch.add(a.choice);e.lastConf=a.conf;}
   const rows=Object.entries(by).filter(([q])=>S.bank[q]&&(!onlyUnresolved||unresolved(sm[q]))).map(([qid,e])=>{
     const it=S.bank[qid];const ch=[...e.ch];
-    return{qid,subject:it.subject,system:it.system,subtopic:it.subtopic||'',related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
+    const reasonings=atts.filter(a=>a.qid===qid&&!a.skipped&&!a.correct&&a.reasoning).slice(-3).map(a=>({chosen:a.choice,reasoning:a.reasoning}));
+    return{qid,learner_reasoning:reasonings,subject:it.subject,system:it.system,subtopic:it.subtopic||'',related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
       answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>((it.option_analysis||{})[c]||{}).misconception).filter(Boolean),
       wrong_count:e.w,dangerous_count:e.d,last_confidence:e.lastConf,takeaway:it.takeaway,misconception_tags:it.misconception_tags||[]};
   }).sort((a,b)=>(b.dangerous_count*2+b.wrong_count)-(a.dangerous_count*2+a.wrong_count)).slice(0,30);
@@ -568,7 +569,7 @@ function badges(it){
   if(it.needs_review)h+=`<span class="bdg warn">검토 필요</span>`;
   return h;
 }
-function qBody(it,{interactive,choice}){
+function qBody(it,{interactive,choice,hideOptions=false}){
   const labs=Array.isArray(it.labs)&&it.labs.length?`<div class="tblwrap"><table class="tbl"><tr><th>검사</th><th>결과</th><th>참고치</th></tr>${it.labs.map(l=>`<tr><td>${esc(l.name)}</td><td class="mono">${esc(l.value)} ${esc(l.unit||'')}</td><td class="mut mono">${esc(l.ref||'')}</td></tr>`).join('')}</table></div>`:'';
   const findings=it.findings_text?`<div class="findings">${fmt(it.findings_text)}</div>`:'';
   const opts=(it.options||[]).map(o=>{
@@ -577,7 +578,7 @@ function qBody(it,{interactive,choice}){
     else{if(o.label===it.answer)cls+=' ok';else if(o.label===choice)cls+=' bad';else cls+=' dim';}
     return `<button class="${cls}" ${interactive?`data-act="choose" data-l="${o.label}"`:'disabled'}><span class="ol">${CIR[o.label]||o.label}</span><span>${fmt(o.text)}</span></button>`;
   }).join('');
-  return `<div class="stem">${fmt(it.stem)}</div>${labs}${findings}<div class="qq">${fmt(it.question||'가장 적절한 것은?')}</div><div class="opts">${opts}</div>`;
+  return `<div class="stem">${fmt(it.stem)}</div>${labs}${findings}<div class="qq">${fmt(it.question||'가장 적절한 것은?')}</div>${hideOptions?'':'<div class="opts">'+opts+'</div>'}`;
 }
 function explanation(it,choice){
   const chain=chainOf(it),oa=it.option_analysis||{},P=[];
@@ -798,14 +799,15 @@ function vSummary(){
   return h;
 }
 function vQuiz(){if(!session)return vSetup();if(session.done)return vSummary();return vQuestion();}
-function startSession(ids){
+function awaitingRecall(){return !!(session?.recallFirst&&!session.done&&!session.optionsOpened&&!session.ans[session.ids[session.i]]);}
+function startSession(ids,recallFirst=false){
   ids=ids.filter(id=>S.bank[id]);
   if(!ids.length){toast('조건에 맞는 문항이 없습니다','err');return;}
-  session={ids,i:0,ans:{},t0:Date.now(),qt:Date.now(),choice:null,conf:null,done:false};go('quiz');
+  session={ids,recallFirst,i:0,ans:{},t0:Date.now(),qt:Date.now(),choice:null,conf:null,done:false};go('quiz');
 }
 async function submit(){
   const id=session.ids[session.i],it=S.bank[id];if(!session.choice||!session.conf)return;
-  const rec={qid:id,ts:Date.now(),choice:session.choice,conf:session.conf,correct:session.choice===it.answer,ms:Date.now()-session.qt};
+  const rec={qid:id,reasoning:session.reasoning||'',ts:Date.now(),choice:session.choice,conf:session.conf,correct:session.choice===it.answer,ms:Date.now()-session.qt};
   S.attempts.push(rec);updateSrs(id,rec);session.ans[id]=rec;render();await save('attempts','srs');
 }
 function skip(reveal){const id=session.ids[session.i];session.ans[id]={qid:id,skipped:true,choice:null};if(reveal)render();else next();}
@@ -1028,6 +1030,7 @@ document.addEventListener('keydown',e=>{
   if(route!=='quiz'||!session||session.done)return;
   if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey)return;
   const id=session.ids[session.i],it=S.bank[id];if(!it)return;const revealed=!!session.ans[id],k=e.key.toLowerCase();
+  if(awaitingRecall()||(k==='enter'&&e.target.closest('button,summary,a')))return;
   if(!revealed){
     if(k.length===1&&'abcdef'.includes(k)&&it.options.some(o=>o.label===k.toUpperCase())){session.choice=k.toUpperCase();render();}
     else if(k==='1'||k==='2'||k==='3'){session.conf=+k;render();}
@@ -1036,8 +1039,9 @@ document.addEventListener('keydown',e=>{
 });
 
 </script>
-<script src="workspace.js?v=b61e4326"></script>
-<script src="campus.js"></script>
+<script src="workspace.js?v=rounds1"></script>
+<script src="campus.js?v=rounds1"></script>
+<script src="rounds.js?v=1"></script>
 <script>
 /* ============ 시작 ============ */
 (async()=>{app.innerHTML='<div class="card mut">불러오는 중…</div>';await loadLocal();render();syncRemote();})();

@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '..');
 const nodes = new Map();
 const node = selector => {
   if (!nodes.has(selector)) nodes.set(selector, {dataset: {}, style: {setProperty() {}},
-    classList: {toggle() {}, remove() {}}, addEventListener() {}, querySelectorAll: () => [],
+    classList: {toggle() {}, remove() {}}, addEventListener(type, fn) {(this.listeners ||= {})[type] ||= []; this.listeners[type].push(fn);}, querySelector: () => null, querySelectorAll: () => [],
     setAttribute() {}, removeAttribute() {}, innerHTML: '', textContent: '', value: ''});
   return nodes.get(selector);
 };
@@ -27,6 +27,7 @@ new vm.Script(scripts.at(-1)[1]); // Bootstrap syntax, without executing network
 run(scripts[0][1]);
 run(fs.readFileSync(path.join(root, 'workspace.js'), 'utf8'));
 run(fs.readFileSync(path.join(root, 'campus.js'), 'utf8'));
+run(fs.readFileSync(path.join(root, 'rounds.js'), 'utf8'));
 run(`
   const testStorage = new Map();
   kvGet = async k => testStorage.get(k);
@@ -84,6 +85,25 @@ run(`
   assert.ok(prompt.includes('lecture.txt') && !prompt.includes('excluded.txt'));
   assert.ok(prompt.includes('Scope constraint') && prompt.includes('source_refs'));
   console.log('PASS: exact selected source range, exclusions, question count and source schema');
+
+  run(`const roundAction=(op,i)=>app.listeners.click.forEach(fn=>fn({target:{closest:sel=>sel==='[data-round]'?{dataset:{round:op,index:i}}:null}}));
+    session=null;go('rounds');`);
+  assert.ok(!run('vRounds()').includes('13 mm'));
+  run("roundAction('inspect',4);roundAction('act',0);");
+  assert.ok(run('vRounds()').includes('13 mm') && run('vRounds()').includes('94까지'));
+  run("roundAction('act',1);roundAction('finish');roundAction('switch',1);roundAction('act',2);roundAction('finish');");
+  assert.ok(run('ROUNDS.every(c=>roundDraft(c).done)'));
+  assert.ok(run('roundCoaching(ROUNDS[0],roundDraft(ROUNDS[0]))').includes('94까지'));
+  await run('loadLocal()');
+  assert.equal(run('roundIndex'),1);
+  assert.ok(run('roundDraft(ROUNDS[1]).done'));
+  run("startSession(['legacy'],true)");
+  assert.ok(!run('vQuestion()').includes('data-act="choose"'));
+  run('session.optionsOpened=true;session.reasoning="initial prediction";session.choice="B";session.conf=2');
+  assert.ok(run('vQuestion()').includes('data-act="choose"'));
+  await run('submit()');
+  assert.ok(run('weaknessPacket(S.attempts,false)').includes('initial prediction'));
+  console.log('PASS: branching encounters, persistent progress, cue-free review and reasoning export');
 
   assert.equal(run('crc32(new TextEncoder().encode("123456789"))'), 0xcbf43926);
   const zip = await run(`zipFiles([{name:'materials/01/강의.txt',blob:new Blob(['source bytes'])},

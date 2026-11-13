@@ -44,7 +44,7 @@ function persistWorkspace(){
  return save('meta');
 }
 function isBookmarked(id){return !!workspace().bookmarks[id]?.value;}
-function readingSize(){return workspace().preferences.largeText?19:17;}
+function readingSize(){return workspace().preferences.largeText?21:18;}
 function pageHeading(title,subtitle,action=''){return `<div class="page-heading"><div><h1>${title}</h1>${subtitle ? '<p>'+subtitle+'</p>' : ''}</div>${action}</div>`;}
 function navItem(r,name,ic){return `<a href="#${r}" data-r="${r}">${icon(ic)}<span>${name}</span>${r==='review'?'<span class="nav-count" id="review-count">0</span>':''}</a>`;}
 function mountShell(){

@@ -44,7 +44,7 @@ async function pathwayScenario() {
   function assertBlind(item) {
     check(q('#reasoning-draft') && !q('[data-first-pick]') && !q('[data-act="choose"]'), 'First response is not blind');
     const visible = q('#app').innerText;
-    for (const cue of [item.model_handoff, ...item.initial_decisions.map(r => r.criterion), ...item.options.map(o => o.text)]) {
+    for (const cue of [item.question, item.model_handoff, ...item.initial_decisions.map(r => r.criterion), ...item.options.map(o => o.text)]) {
       check(!cue || !visible.includes(cue), 'An answer, criterion, or model handoff was shown early');
     }
   }
@@ -100,9 +100,12 @@ async function pathwayScenario() {
   const referral = q('.pathway-lane .pri');
   check(referral?.dataset.pathway === 'handoff' && referral.dataset.id, 'Missed escalation did not route to a sourced handoff');
   const source = referral.dataset.id;
+  check(source === writtenHandoffId(first), 'Referral is tied to a different response');
   click('.pathway-lane .pri');
   await until(() => location.hash === '#skills' && q('#app').innerText.includes('다시 연습할 이유'), 'Handoff recommendation did not open the observation');
-  check(campus().skills[selectedSkill].draft.handoffAttempt === source, 'Observation opened without the originating attempt');
+  const handoff=campus().skills[selectedSkill].draft;
+  check(handoff.handoffAttempt === source && handoff.handoffSource.qid === index.id &&
+    handoff.handoffSource.stem === index.stem, 'Observation opened without the originating patient');
   check(!campus().skills[selectedSkill].logs.length, 'Opening a drill fabricated observed performance');
 
   setClock(Number(now) + 60000);

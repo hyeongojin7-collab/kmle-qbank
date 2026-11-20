@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="assets/brand/praesoma-mark.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/praesoma.png">
 <link rel="preload" href="assets/fonts/SUIT-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="workspace.css?v=clinical2">
+<link rel="stylesheet" href="workspace.css?v=clinical4">
 </head>
 <body>
 <a class="skip-link" href="#app">본문으로 건너뛰기</a>
@@ -79,7 +79,7 @@ const revisionCache=new WeakMap();
 function itemRevision(it){
   if(!it)return '';
   if(revisionCache.has(it))return revisionCache.get(it);
-  const fields=['stem','question','labs','findings_text','options','answer','option_analysis','takeaway','causal_chain','media','images','media_refs','image_search_keywords'];
+  const fields=['stem','question','labs','findings_text','options','answer','option_analysis','takeaway','causal_chain','media','images','media_refs','image_search_keywords','initial_decisions','model_handoff'];
   const material=Object.fromEntries(fields.filter(k=>it[k]!=null).map(k=>[k,it[k]]));
   const version='q-'+cyrb53(canonicalJSON(material)).toString(36);
   revisionCache.set(it,version);
@@ -92,6 +92,15 @@ function sourceLocated(r){
 }
 function missingQualityEvidence(it){
   const issues=[];
+  if(it.initial_decisions!=null){
+    const rows=Array.isArray(it.initial_decisions)?it.initial_decisions:[];
+    const ids=rows.map(r=>r?.id);
+    const valid=!!it.objective_id&&ids.length===3&&['danger','action','escalation'].every(id=>ids.includes(id))&&
+      rows.every(r=>typeof r.prompt==='string'&&r.prompt.trim()&&typeof r.criterion==='string'&&r.criterion.trim()&&
+        Array.isArray(r.choices)&&r.choices.length>=2&&r.choices.every(c=>typeof c?.id==='string'&&c.id.trim()&&typeof c.text==='string'&&c.text.trim())&&
+        new Set(r.choices.map(c=>c.id)).size===r.choices.length&&r.choices.some(c=>c.id===r.key));
+    if(!valid)issues.push('초기 판단 질문·보기·평가 기준 확인');
+  }
   if(!Array.isArray(it.source_refs)||!it.source_refs.some(sourceLocated))issues.push('원문 위치 또는 출처 URL');
   const missing=(Array.isArray(it.options)?it.options:[]).filter(o=>{
     const a=it.option_analysis?.[o?.label];
@@ -743,7 +752,8 @@ function qBody(it,{interactive,choice,hideOptions=false}){
     else{if(o.label===it.answer)cls+=' ok';else if(o.label===choice)cls+=' bad';else cls+=' dim';}
     return `<button class="${cls}" ${interactive?`data-act="choose" data-l="${o.label}"`:'disabled'}><span class="ol">${CIR[o.label]||o.label}</span><span>${fmt(o.text)}</span></button>`;
   }).join('');
-  return `<div class="stem">${fmt(it.stem)}</div>${labs}${findings}<div class="qq">${fmt(it.question||'가장 적절한 것은?')}</div>${hideOptions?'':'<div class="opts">'+opts+'</div>'}`;
+  const showLead=!(hideOptions&&it.initial_decisions?.length);
+  return `<div class="stem">${fmt(it.stem)}</div>${labs}${findings}${showLead?'<div class="qq">'+fmt(it.question||'가장 적절한 것은?')+'</div>':''}${hideOptions?'':'<div class="opts">'+opts+'</div>'}`;
 }
 function explanation(it,choice){
   const chain=chainOf(it),oa=it.option_analysis||{},P=[];
@@ -786,68 +796,120 @@ function explanation(it,choice){
 function emptyState(){return `<div class="card empty"><h2>QBank가 비어 있습니다</h2><p class="mut">Gemini로 만든 문항 JSON을 넣으면 여기에 계속 쌓입니다.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-act="go" data-r="add">문항 추가하러 가기 →</button></div></div>`;}
 
 /* ============ 과목 > 분과 표 ============ */
-// 주 분과(primary)는 문항 수에 한 번만 셈. 연계 분과는 '연계' 열에 따로 셈.
-// 분과 정답률은 연계 문항 풀이까지 포함 — 그 분과 지식이 실제로 시험된 모든 기회를 반영.
-function subjectTable(items,sm){
-  const T={};
-  const cell=()=>({n:0,rel:0,att:0,c:0,t:0});
-  const stKey=it=>(it.subject||'미분류')+'|'+primSys(it)+'|'+subOf(it);
-  const ST={};
-  for(const it of items){
-    const s=it.subject||'미분류';const sub=T[s]||(T[s]={tot:cell(),sys:{}});
-    sub.tot.n++;if(sm[it.id])sub.tot.att++;
-    allSys(it).forEach((y,i)=>{const e=sub.sys[y]||(sub.sys[y]=cell());if(i===0)e.n++;else e.rel++;if(sm[it.id])e.att++;});
-    const k=stKey(it),e=ST[k]||(ST[k]=cell());e.n++;if(sm[it.id])e.att++;
+// Counts refer to primary placement; related subjects describe inventory only.
+function specialtyEvidence(items){
+  const eligible=new Map(items.filter(it=>!it.block_id&&isStudyEligible(it)).map(it=>[it.id,it]));
+  const submitted=S.attempts.filter(a=>{
+    const it=eligible.get(a.qid);
+    return it&&!a.skipped&&a.mode!=='mock'&&isCurrentAttempt(a)&&Number.isFinite(a.ts)&&
+      typeof a.correct==='boolean'&&it.options?.some(o=>o.label===a.choice);
+  }).sort((a,b)=>a.ts-b.ts);
+  const byItem=new Map();
+  for(const a of submitted){
+    let obs=byItem.get(a.qid);
+    if(!obs){obs={first:a,count:0,familyFirst:false,openDanger:false};byItem.set(a.qid,obs);}
+    obs.count++;
+    if(a.conf===3)obs.openDanger=!a.correct;
   }
-  for(const a of S.attempts){
-    const it=S.bank[a.qid];if(!it)continue;const sub=T[it.subject||'미분류'];if(!sub)continue;
-    sub.tot.t++;if(a.correct)sub.tot.c++;
-    for(const y of allSys(it)){const e=sub.sys[y];if(e){e.t++;if(a.correct)e.c++;}}
-    const e=ST[stKey(it)];if(e){e.t++;if(a.correct)e.c++;}
+
+  // Prior mock/old-edition/sibling exposures cannot earn a new objective baseline.
+  const firstEncounter=new Map(), objectiveTouches=new Map();
+  function mark(id,ts,individual=true){
+    const it=S.bank[id];
+    if(!it||!Number.isFinite(ts))return;
+    if(individual&&(!firstEncounter.has(id)||ts<firstEncounter.get(id)))firstEncounter.set(id,ts);
+    if(!it.objective_id)return;
+    if(!objectiveTouches.has(it.objective_id))objectiveTouches.set(it.objective_id,new Map());
+    const touches=objectiveTouches.get(it.objective_id);
+    if(!touches.has(id)||ts<touches.get(id))touches.set(id,ts);
   }
-  // 가장 약한 분과·세부 주제: 시도 5회 이상 중 정답률 최저
-  let weak=null,weakSt=null;
-  for(const[s,sub]of Object.entries(T))for(const[y,e]of Object.entries(sub.sys))if(y!==NOSYS&&e.t>=5){const acc=e.c/e.t;if(!weak||acc<weak.acc)weak={s,y,acc,t:e.t};}
-  for(const[k,e]of Object.entries(ST))if(e.t>=5&&!k.endsWith('|'+NOSUB)){const acc=e.c/e.t;if(!weakSt||acc<weakSt.acc)weakSt={k,acc,t:e.t};}
-  const row=(cls,label,e,showRel,attrs)=>`<tr class="${cls}"${attrs||''}><td>${label}</td><td class="mono">${e.n}</td><td class="mono mut">${showRel?(e.rel||''):''}</td><td class="mono">${e.att}</td><td class="mono">${e.t?pct(e.c/e.t):'—'}</td><td><div class="bar"><i style="width:${e.t?Math.round(e.c/e.t*100):0}%"></i></div></td></tr>`;
-  let body='';
-  for(const[s,sub]of Object.entries(T).sort((a,b)=>b[1].tot.n-a[1].tot.n)){
-    body+=row('sub',esc(s),sub.tot,false);
-    // 표준 분과는 문항이 0개여도 보여준다 → 어느 분과가 비어 있는지 한눈에
-    for(const y of Object.keys(TAX[s]||{}))if(!sub.sys[y])sub.sys[y]=cell();
-    const sys=Object.entries(sub.sys).sort((a,b)=>sysSort(a[0],b[0]));
-    if(sys.length===1&&sys[0][0]===NOSYS)continue;
-    for(const[y,e]of sys){
-      const subs=subsFor(s,y,items),key=s+'|'+y,open=dashOpen.has(key);
-      const std=subList(s,y),covered=std.filter(x=>(ST[s+'|'+y+'|'+x]||{}).n).length;
-      const lab=`${subs.length?`<span class="caret">${open?'▾':'▸'}</span> `:''}${esc(y)}${std.length?` <span class="cov mono">${covered}/${std.length}</span>`:''}`;
-      body+=row('sys'+(subs.length?' tog':'')+(weak&&weak.s===s&&weak.y===y?' weak':'')+(!e.n&&!e.rel?' zero':''),lab,e,true,subs.length?` data-act="toggleSys" data-k="${esc(key)}"`:'');
-      if(open)for(const x of subs){const k=s+'|'+y+'|'+x,c=ST[k]||cell();
-        body+=row('st'+(c.n?'':' zero')+(weakSt&&weakSt.k===k?' weak':''),esc(x)+(TAX_ADDED.has(y+'|'+x)?' <span class="mut" title="참고자료에 없어 추가한 항목">＋</span>':''),c,false);}
+  for(const a of S.attempts)mark(a.qid,a.ts);
+  const w=S.meta.workspace||{};
+  for(const [id,exp] of Object.entries(w.exposures||{}))mark(id,exp?.first);
+  for(const [id,ts] of Object.entries(w.presentations||{}))mark(id,ts,false);
+  for(const block of Object.values(w.mocks||{})){
+    for(const [id,ts] of Object.entries(block?.seen||{}))mark(id,ts);
+  }
+  const objectivesUsed=new Set();
+  for(const a of submitted){
+    const item=eligible.get(a.qid), obs=byItem.get(a.qid), objective=item.objective_id;
+    if(obs.first!==a||!objective||objectivesUsed.has(objective)||item.variant_role==='transfer')continue;
+    if(a.priorExposureAt!==null||firstEncounter.get(item.id)<a.ts)continue;
+    if([...objectiveTouches.get(objective)].some(([id,ts])=>id!==item.id&&ts<=a.ts))continue;
+    obs.familyFirst=true;
+    objectivesUsed.add(objective);
+  }
+  return {eligible,submitted,byItem};
+}
+function subjectTable(items,evidence=specialtyEvidence(items)){
+  const groups=new Map(),subtopics=new Map(),eligible=[...evidence.eligible.values()];
+  const cell=()=>({n:0,related:0,first:0,correct:0,repeats:0,families:0,familyCorrect:0,unmapped:0});
+  const key=(subject,system,topic)=>JSON.stringify([subject,system,topic]);
+  function add(c,it,obs){
+    c.n++;if(!obs)return;
+    c.first++;c.correct+=Number(obs.first.correct);c.repeats+=obs.count-1;
+    if(!it.objective_id)c.unmapped++;
+    if(obs.familyFirst){c.families++;c.familyCorrect+=Number(obs.first.correct);}
+  }
+  for(const it of eligible){
+    const name=it.subject||'미분류',y=primSys(it),k=key(name,y,subOf(it)),obs=evidence.byItem.get(it.id);
+    if(!groups.has(name))groups.set(name,{total:cell(),systems:new Map()});
+    const group=groups.get(name);
+    if(!group.systems.has(y))group.systems.set(y,cell());
+    if(!subtopics.has(k))subtopics.set(k,cell());
+    add(group.total,it,obs);add(group.systems.get(y),it,obs);add(subtopics.get(k),it,obs);
+    for(const related of new Set(it.related_systems||[])){
+      if(related===y)continue;
+      if(!group.systems.has(related))group.systems.set(related,cell());
+      group.systems.get(related).related++;
     }
   }
-  const hasRel=items.some(it=>(it.related_systems||[]).length);
-  const wl=weakSt?weakSt.k.split('|'):null;
-  return `<div class="card"><h2>과목 › 분과 › 세부 주제</h2><div class="tblwrap"><table class="tbl"><tr><th>과목 / 분과 / 세부 주제</th><th>문항</th><th>연계</th><th>풀어봄</th><th>정답률</th><th></th></tr>${body}</table></div>
-  ${weak?`<div class="bad-t cap">가장 약한 분과: ${esc(weak.s)} › ${esc(weak.y)} — 정답률 ${pct(weak.acc)} (${weak.t}회).</div>`:''}
-  ${wl?`<div class="bad-t cap">가장 약한 세부 주제: ${esc(wl[1])} › ${esc(wl[2])} — 정답률 ${pct(weakSt.acc)} (${weakSt.t}회). 문제 풀기에서 이 주제만 골라 집중해 보세요.</div>`:''}
-  <div class="mut cap">분과를 누르면 세부 주제가 펼쳐집니다. 분과 옆 숫자(예: 9/14)는 문항이 1개 이상 있는 세부 주제 수 / 전체 세부 주제 수 — 흐린 줄은 아직 문항이 없는 빈 영역입니다. 문항 = 주 분과 기준(과목 합계와 일치). ${hasRel?'연계 = 다른 분과가 주이지만 이 분과 지식도 필요한 다학제 문항 수. ':''}분과 정답률은 연계 문항까지, 세부 주제 정답률은 주 분과 문항만 포함합니다.</div></div>`;
+  const ratio=(count,total)=>total?count+' / '+total:'—';
+  const row=(cls,label,c,attrs='')=>`<tr class="${cls}"${attrs}><td>${label}</td><td>${c.n}</td><td>${c.related||'—'}</td><td>${ratio(c.correct,c.first)}</td><td>${c.repeats}</td><td>${ratio(c.familyCorrect,c.families)}</td><td>${c.unmapped||'—'}</td></tr>`;
+  let body='';
+  const comparisons=[];
+  for(const [s,g] of [...groups].sort((a,b)=>b[1].total.n-a[1].total.n)){
+    body+=row('sub',esc(s),g.total);
+    for(const y of Object.keys(TAX[s]||{}))if(!g.systems.has(y))g.systems.set(y,cell());
+    const systems=[...g.systems].sort((a,b)=>sysSort(a[0],b[0]));
+    const comparable=systems.filter(([y,c])=>y!==NOSYS&&c.families>=5);
+    if(comparable.length>=2)comparisons.push(esc(s)+' · '+comparable.map(([y,c])=>esc(y)+' '+ratio(c.familyCorrect,c.families)).join(' / '));
+    if(systems.length===1&&systems[0][0]===NOSYS)continue;
+    for(const [y,c] of systems){
+      const detail=subsFor(s,y,eligible),toggleKey=s+'|'+y,open=dashOpen.has(toggleKey);
+      const std=subList(s,y),covered=std.filter(x=>subtopics.get(key(s,y,x))?.n).length;
+      const label=(detail.length?'<span class="caret">'+(open?'▾':'▸')+'</span> ':'')+esc(y)+
+        (std.length?' <span class="cov mono" title="보유 세부 주제 / 분류표 세부 주제">'+covered+'/'+std.length+'</span>':'');
+      body+=row('sys'+(detail.length?' tog':'')+(!c.n&&!c.related?' zero':''),label,c,detail.length?' data-act="toggleSys" data-k="'+esc(toggleKey)+'"':'');
+      if(open)for(const x of detail){
+        const d=subtopics.get(key(s,y,x))||cell();
+        body+=row('st'+(d.n?'':' zero'),esc(x),d);
+      }
+    }
+  }
+  const notes=comparisons.length
+    ? '<p class="cap">비교 가능한 목표 초회 기록 · '+comparisons.join('<br>')+'</p>'
+    : '<p class="cap">분과 간 비교 자료 부족 · 같은 과목의 두 분과에서 각각 서로 다른 목표 5개 이상의 초회 기록이 필요합니다.</p>';
+  return `<div class="card"><h2>과목 · 분과별 학습 범위</h2><div class="tblwrap"><table class="tbl"><thead><tr><th>과목 / 분과 / 세부 주제</th><th>보유 문항</th><th>연계 보유</th><th>현행판 첫 제출 정답 / 문항</th><th>재풀이 횟수</th><th>목표 초회 정답 / 목표</th><th>목표 ID 없는 풀이 문항</th></tr></thead><tbody>${body}</tbody></table></div>${notes}
+    <p class="mut cap">KMLE 일반 학습의 현재 풀이 가능한 문항을 주 분과에 한 번씩 집계합니다. 학교 블록·모의시험·건너뜀·과거 판본은 채점 집계에서 제외합니다. 연계 분과는 보유 현황만 표시합니다.</p>
+    <p class="mut cap">목표 초회는 같은 목표 ID에서 사전 해설·풀이 노출이 없다고 기록된 첫 선택입니다. 미노출 확인이 어려운 과거 기록과 변형 재평가는 문항별 첫 제출에만 반영합니다. 5개는 비교 표시에 쓰는 최소 범위이며, 문항 난도와 선택 범위가 달라 분과 실력이나 시험 점수의 순위를 뜻하지 않습니다.</p></div>`;
 }
 
 /* ============ 뷰: 대시보드 ============ */
 function vDash(){
   const items=Object.values(S.bank);if(!items.length)return emptyState();
-  const sm=statsMap(),now=Date.now();
-  const attempted=items.filter(i=>sm[i.id]).length,tot=S.attempts.length,cor=S.attempts.filter(a=>a.correct).length;
-  const due=items.filter(i=>isDue(i.id,now)).length,dangerN=items.filter(i=>dangerOpen(sm[i.id])).length;
-  const flagN=Object.keys(S.flags).filter(id=>S.bank[id]).length,today=S.attempts.filter(a=>dstr(a.ts)===dstr(now)).length;
+  const evidence=specialtyEvidence(items),now=Date.now();
+  const observations=[...evidence.byItem.values()],attempted=observations.length;
+  const firstCorrect=observations.filter(obs=>obs.first.correct).length;
+  const due=[...evidence.eligible.values()].filter(i=>isDue(i.id,now)).length,dangerN=observations.filter(obs=>obs.openDanger).length;
+  const flagN=Object.keys(S.flags).filter(id=>S.bank[id]).length,today=evidence.submitted.filter(a=>dstr(a.ts)===dstr(now)).length;
   const stat=(n,l)=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
-  let h=`<div class="card"><h2>대시보드</h2><div class="grid">${stat(items.length,'총 문항')}${stat(attempted,'풀어본 문항')}${stat(tot?pct(cor/tot):'—','누적 정답률')}${stat(due,'복습 대기')}${stat(dangerN,'미해결 치명적 착각')}${stat(today,'오늘 푼 횟수')}</div>
-  <div class="actions"><button class="btn pri" data-act="quick" data-mode="smart">스마트 세션 20문항</button>${dangerN?`<button class="btn dangerb" data-act="quick" data-mode="danger">⚠️ 치명적 착각 재공격 (${dangerN})</button>`:''}${due?`<button class="btn" data-act="quick" data-mode="due">복습만 (${due})</button>`:''}</div></div>`;
-  h+=`<div class="card"><h2>확신도 보정 (Calibration)</h2>${calibTable(calib(S.attempts))}</div>`;
-  h+=subjectTable(items,sm);
-  const mt=misTally(S.attempts).slice(0,10);
-  if(mt.length)h+=`<div class="card"><h2>나를 가장 많이 넘어뜨린 오개념</h2><div class="tblwrap"><table class="tbl"><tr><th>오개념 태그</th><th>오답</th><th>치명적</th><th>주제</th></tr>${mt.map(m=>`<tr><td><code>${esc(m.tag)}</code></td><td class="mono">${m.n}</td><td class="mono ${m.d?'bad-t':''}">${m.d}</td><td class="mut">${esc([...m.topics].slice(0,3).join(', '))}</td></tr>`).join('')}</table></div></div>`;
+  let h=`<div class="card"><h2>KMLE 일반 학습 기록</h2><div class="grid">${stat(evidence.eligible.size,'풀이 가능 문항')}${stat(attempted,'현행판 제출 문항')}${stat(attempted?firstCorrect+' / '+attempted:'—','문항 첫 제출 정답 / 문항')}${stat(due,'복습 대기')}${stat(dangerN,'재확인이 필요한 고확신 오답')}${stat(today,'오늘 제출 · 재풀이 포함')}</div>
+  <div class="actions"><button class="btn pri" data-act="quick" data-mode="smart">스마트 세션 20문항</button>${dangerN?`<button class="btn dangerb" data-act="quick" data-mode="danger">⚠️ 고확신 오답 복습 (${dangerN})</button>`:''}${due?`<button class="btn" data-act="quick" data-mode="due">복습만 (${due})</button>`:''}</div></div>`;
+  h+=`<div class="card"><h2>첫 제출의 확신도 보정</h2>${calibTable(calib(observations.map(obs=>obs.first)))}</div>`;
+  h+=subjectTable(items,evidence);
+  const mt=misTally(evidence.submitted).slice(0,10);
+  if(mt.length)h+=`<div class="card"><h2>선택한 오답의 태그 · 재풀이 포함</h2><div class="tblwrap"><table class="tbl"><tr><th>오개념 태그</th><th>오답</th><th>고확신 오답</th><th>주제</th></tr>${mt.map(m=>`<tr><td><code>${esc(m.tag)}</code></td><td class="mono">${m.n}</td><td class="mono ${m.d?'bad-t':''}">${m.d}</td><td class="mut">${esc([...m.topics].slice(0,3).join(', '))}</td></tr>`).join('')}</table></div></div>`;
   h+=`<div class="card"><h2>Gemini 루프</h2><p class="mut">버튼을 누르면 Gemini에 바로 붙여넣을 수 있는 요청문이 복사됩니다. '세부 주제 분류 패킷'은 세부 주제가 자동 추정이거나 비어 있는 문항을 Gemini(또는 Claude)에게 정확히 분류시키는 요청문입니다 — 결과 JSON을 '문항 추가'에 붙여넣으면 반영됩니다.</p><div class="actions"><button class="btn" data-act="copyWeak">/weakness 패킷 복사</button><button class="btn" data-act="copyCoverage">/coverage 패킷 복사</button>${(()=>{const n=items.filter(needsClass).length;return n?`<button class="btn" data-act="copyClassify">세부 주제 분류 패킷 (${n})</button>`:''})()}${flagN?`<button class="btn" data-act="copyAudit">🚩 신고 문항 /audit 패킷 (${flagN})</button>`:''}</div></div>`;
   const rec=S.meta.batches.slice(-8).reverse().filter(b=>(b.metas||[]).some(m=>(m.conflicts||[]).length||(m.coverage_gaps||[]).length));
   if(rec.length)h+=`<div class="card"><h2>Gemini가 보고한 근거 충돌·공백</h2>${rec.map(b=>`<div class="mut mono" style="margin-top:8px">${dstr(b.ts)} · ${esc(b.source)}</div>${b.metas.map(m=>`${(m.conflicts||[]).length?`<div class="warn">충돌: ${esc(JSON.stringify(m.conflicts))}</div>`:''}${(m.coverage_gaps||[]).length?`<div class="mut">공백: ${esc(JSON.stringify(m.coverage_gaps))}</div>`:''}`).join('')}`).join('')}</div>`;
@@ -977,7 +1039,10 @@ function vSummary(){
   return h;
 }
 function vQuiz(){if(!session)return vSetup();if(session.done)return vSummary();return vQuestion();}
-function awaitingRecall(){return !!(session?.recallFirst&&!session.done&&!session.optionsOpened&&!session.ans[session.ids[session.i]]);}
+function awaitingRecall(){
+  if(!session||session.done||session.optionsOpened||session.ans[session.ids[session.i]])return false;
+  return !!(session.recallFirst||S.bank[session.ids[session.i]]?.initial_decisions?.length);
+}
 function startSession(ids,recallFirst=false){
   ids=ids.filter(id=>isStudyEligible(S.bank[id]));
   if(!ids.length){toast('조건에 맞는 문항이 없습니다','err');return;}
@@ -1194,6 +1259,11 @@ function publicBankItems(){
   for(const it of Object.values(S.bank)){
     if(it.block_id||it.exam_id||String(it._source||'').startsWith('school:')||!isStudyEligible(it))continue;
     const q=selectFields(it,plainFields);
+    if(Array.isArray(it.initial_decisions)){
+      q.initial_decisions=it.initial_decisions.map(r=>({...selectFields(r,['id','prompt','key','criterion']),
+        choices:r.choices.map(c=>selectFields(c,['id','text']))}));
+      if(typeof it.model_handoff==='string')q.model_handoff=it.model_handoff;
+    }
     for(const key of ['related_systems','causal_chain','misconception_ids','misconception_tags','image_search_keywords']){
       if(Array.isArray(it[key]))q[key]=it[key].filter(v=>typeof v==='string');
     }
@@ -1377,7 +1447,7 @@ document.addEventListener('keydown',e=>{
   if(route!=='quiz'||!session||session.done)return;
   if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.metaKey||e.ctrlKey||e.altKey)return;
   const id=session.ids[session.i],it=S.bank[id];if(!it)return;const revealed=!!session.ans[id],k=e.key.toLowerCase();
-  if(awaitingRecall()||(k==='enter'&&e.target.closest('button,summary,a')))return;
+  if(awaitingRecall()||(typeof pendingDecisions==='function'&&pendingDecisions())||(k==='enter'&&e.target.closest('button,summary,a')))return;
   if(!revealed){
     if(k.length===1&&'abcdef'.includes(k)&&it.options.some(o=>o.label===k.toUpperCase())){session.choice=k.toUpperCase();render();}
     else if(k==='1'||k==='2'||k==='3'){session.conf=+k;render();}
@@ -1386,12 +1456,13 @@ document.addEventListener('keydown',e=>{
 });
 
 </script>
-<script src="transfer.js?v=clinical3"></script>
-<script src="workspace.js?v=clinical3"></script>
+<script src="first-decisions.js?v=1"></script>
+<script src="transfer.js?v=clinical4"></script>
+<script src="workspace.js?v=clinical4"></script>
 <script src="reason-patterns.js?v=clinical2"></script>
-<script src="campus.js?v=clinical3"></script>
+<script src="campus.js?v=clinical4"></script>
 <script src="visual-practice.js?v=clinical3"></script>
-<script src="rounds.js?v=clinical3"></script>
+<script src="rounds.js?v=clinical4"></script>
 <script src="mock.js?v=clinical3"></script>
 <script>
 /* ============ 시작 ============ */

@@ -26,8 +26,8 @@ run(`const a=skillPracticeResult(s,{...d,checks:[0,0,999],notes:'first attempt',
   const b=skillPracticeResult(s,{...d,evidence:'supervised',observerRole:'faculty',attested:true,focusStep:'3',setting:'clinical',notes:'missed thumb',assistance:'verbal',
     remediation:'observe thumb next time',interval:'3',checks:[0,1]}).log;
   s.logs=[b];
-  const c=skillPracticeResult(s,{...d,evidence:'supervised',observerRole:'faculty',attested:true,notes:'all steps observed',assistance:'independent',
-    checks:[0,1,2,3,4],targetLog:b.id,outcome:'corrected'}).log;`);
+  const c=skillPracticeResult(s,{...d,evidence:'supervised',setting:'clinical',observerRole:'faculty',attested:true,notes:'all steps observed',assistance:'independent',
+    checks:[0,1,2,3],criticalRatings:{4:'adequate'},targetLog:b.id,outcome:'corrected'}).log;`);
 assert.equal(run('a.checked'), 1);
 assert.equal(run('a.setting'), 'simulation');
 assert.equal(run('b.setting'), 'clinical');
@@ -71,10 +71,10 @@ assert.ok(run("skillPracticeResult(localRubric,{...observation,attested:true,foc
 run(`const event=skillPracticeResult(localRubric,{...observation,attested:true}).log;localRubric.logs=[event];
   const edition2=applyLocalRubric(localRubric,{...imported,version:'2027-2',steps:['! 라벨을 다시 대조한다.','환자 확인 행동을 수행한다.']});
   const repeat={...newSkillDraft(),evidence:'supervised',observerRole:'faculty',assistance:'independent',attested:true,
-    notes:'모형에서 관찰',checks:[0,1],targetLog:event.id,outcome:'corrected'};`);
+    notes:'모형에서 관찰',checks:[1],criticalRatings:{0:'adequate'},targetLog:event.id,outcome:'corrected'};`);
 assert.equal(run("event.correction.index===1 && event.rubric.version==='2027-1' && !!event.observerConfirmedAt"),true);
 assert.ok(run('skillPracticeResult(edition2,repeat).error'));
-assert.ok(run("skillPracticeResult(edition2,{...repeat,mappedStep:'0',checks:[1],remediation:'다시',focusStep:'0'}).error"));
+assert.ok(run("skillPracticeResult(edition2,{...repeat,mappedStep:'0',criticalRatings:{0:'unobserved'},remediation:'다시',focusStep:'0'}).error"));
 assert.ok(run("skillPracticeResult(edition2,{...repeat,evidence:'self',mappedStep:'0'}).error"));
 assert.ok(run("skillPracticeResult(edition2,{...repeat,attested:false,mappedStep:'0'}).error"));
 for(const outcome of ['corrected','coaching','not_assessed']){
@@ -93,6 +93,138 @@ assert.match(run('skillLogView(resultLog)'),/교정 수행을 확인/);
 console.log('PASS: private TXT/JSON rubrics, version history, observer confirmation, specific action and mapped re-observation');
 
 // Exercise the school action against the real quality gate, including ordinary pre-upgrade imports.
+// Real practice save path accepts incomplete work but never promotes it to demonstrated safety.
+async function observedSafetyTests(){
+  context.toast=()=>{};context.go=()=>{};
+  run("addSkillStarter('venous-blood');selectedSkill='SKILL-STARTER-venous-blood';var vv=campus().skills[selectedSkill];vv.logs=[];");
+  run("vv.draft={...newSkillDraft(),notes:'회상만 함',interval:'14'}");
+  await run('recordSkillPractice()');
+  const unknown=run('vv.logs.at(-1)');
+  assert.equal(unknown.checked,0);
+  assert.equal(unknown.safetySteps.filter(row=>row.status==='unobserved').length,4);
+  assert.equal(unknown.nextDue-unknown.ts,86400000);
+  assert.equal(run("pendingCriticalActions().filter(t=>t.skillId===vv.id).length"),4);
+  run(`var witnessed={...newSkillDraft(),evidence:'supervised',observerRole:'faculty',attested:true,setting:'clinical',
+    assistance:'independent',notes:'확인 전에 검체를 받음',focusStep:'0',remediation:'두 식별자를 먼저 대조',interval:'14',
+    criticalRatings:{0:'coaching',3:'adequate',6:'unobserved',7:'unobserved'}};
+    vv.draft={...witnessed,focusStep:'1'};`);
+  assert.ok(run('skillPracticeResult(vv,vv.draft).error'));
+  run('vv.draft={...witnessed};');await run('recordSkillPractice()');
+  const coached=run('vv.logs.at(-1)');
+  assert.equal(coached.safetySteps[0].status,'coaching');
+  assert.ok(coached.nextDue<=coached.ts);
+  assert.equal(run("pendingCriticalActions().find(t=>t.skillId===vv.id&&t.stepIndex===0).requiredRank"),3);
+  const high=run('vv.logs.at(-1).id');
+  run(`var better={...newSkillDraft(),evidence:'peer',observerRole:'peer',attested:true,setting:'simulation',assistance:'independent',
+    notes:'단서 없이 모형에서 시연함',criticalRatings:{0:'adequate',3:'adequate',6:'adequate',7:'adequate'},interval:'14'};
+    vv.draft=better;`);
+  await run('recordSkillPractice()');
+  assert.equal(run("pendingCriticalActions().find(t=>t.skillId===vv.id&&t.stepIndex===0).sourceLogId"),high);
+  assert.ok(run("skillPracticeResult(vv,{...better,targetLog:vv.logs[1].id,outcome:'corrected'}).error"));
+  assert.ok(run("skillPracticeResult({...vv,logs:[{...vv.logs[1],evidence:'peer',observerRole:'peer',setting:'simulation',assistance:'independent'}]},{...better,targetLog:vv.logs[1].id,outcome:'corrected'}).error"));
+  run("vv.draft={...better,evidence:'supervised',observerRole:'faculty',setting:'clinical',assistance:'verbal',focusStep:'0',remediation:'단서 없이 반복'};");
+  await run('recordSkillPractice()');
+  assert.ok(run("vv.logs.at(-1).safetySteps.every(row=>row.status==='assisted')"));
+  run("vv.draft={...better,evidence:'supervised',observerRole:'faculty',setting:'clinical',targetLog:vv.logs[1].id,outcome:'corrected'};");
+  await run('recordSkillPractice()');
+  assert.equal(run("pendingCriticalActions().filter(t=>t.skillId===vv.id).length"),0);
+  // Old 'checked' counters and signed text lacked a separate direct-observation verdict per critical item.
+  run(`campus().skills.oldSafety={id:'oldSafety',title:'old',source:'paper',type:'osce',steps:['! identity'],
+    logs:[{ts:100,checked:1,total:1,notes:'ok',evidence:'supervised',observerConfirmedAt:100,assistance:'independent',rubric:{steps:['! identity']}}]};`);
+  assert.equal(run("pendingCriticalActions().find(t=>t.skillId==='oldSafety').status"),'unobserved');
+  // A receipt on a peri-procedure call must route to an actual SBAR observer, even if someone renamed the original station.
+  run(`workspace().roundAttempts={R:{caseId:'ward-evening',attemptId:'R',finishedAt:100,
+    communication:{mode:'peer',readbackAt:95,rating:'one',correction:'보고받는 사람이 요청 시점을 듣지 못함'}},
+    clinic:{caseId:'clinic-return',attemptId:'clinic',finishedAt:110}};
+    campus().skills[HANDOFF_SKILL_ID]={...vv,id:HANDOFF_SKILL_ID,steps:['! unrelated'],type:'osce'};
+    var countBefore=Object.keys(campus().skills).length;`);
+  assert.equal(run("handoffObservationTarget('clinic')"),null);
+  assert.equal(run("handoffObservationTarget().status"),'coaching');
+  assert.equal(run("Object.keys(campus().skills).length"),run('countBefore'));
+  assert.ok(run("openHandoffObservation('R')"));
+  run("var sb=campus().skills[selectedSkill];");
+  assert.equal(run("sb.type"),'communication');
+  assert.equal(run("sb.draft.handoffAttempt"),'R');
+  assert.ok(run("sb.steps[handoffObservationTarget().stepIndex].includes('지원')"));
+  run(`var receive={...sb.draft,evidence:'peer',observerRole:'peer',attested:true,assistance:'independent',notes:'재보고 직접 관찰',
+    criticalRatings:{3:'adequate'},heardRisk:'heard',repeatRisk:'진행하는 쇼크',heardRequest:'heard',repeatRequest:'즉시 회복실에 와 주세요'};sb.draft=receive;`);
+  await run('recordSkillPractice()');
+  assert.equal(run("handoffObservationTarget('R').status"),'coaching');
+  assert.ok(run("skillPracticeResult(sb,{...receive,repeatRisk:''}).error"));
+  assert.ok(run("skillPracticeResult(sb,{...receive,heardRequest:'missed',repeatRequest:''}).error"));
+  assert.equal(run("skillPracticeResult(sb,{...receive,heardRequest:'missed',repeatRequest:'',remediation:'다음 행동과 시점을 다시 확인',focusStep:'3'}).log.safetySteps[0].status"),'coaching');
+  run("sb.draft={...receive,evidence:'supervised',observerRole:'resident',setting:'simulation'};");
+  await run('recordSkillPractice()');
+  assert.equal(run("handoffObservationTarget('R').status"),'observed-independent');
+  assert.equal(run("handoffObservationTarget('R').setting"),'simulation');
+  run(`var sbBackup=JSON.parse(JSON.stringify(sb)),lastId=sb.logs.at(-1).id;
+    sb.logs=sb.logs.slice(0,1);campus().skills[sb.id]=mergeSkillRecords(sb,sbBackup);
+    campus().skills[sb.id]=mergeSkillRecords(campus().skills[sb.id],sbBackup);`);
+  assert.equal(run("campus().skills[sb.id].logs.filter(l=>l.id===lastId).length"),1);
+  assert.equal(run("handoffObservationTarget('R').status"),'observed-independent');
+  console.log('PASS: per-step observation, honest incomplete sessions, deadline caps, evidence hierarchy, legacy migration, targeted handoff and cross-device recovery');
+}
+observedSafetyTests().catch(error=>{console.error(error);process.exitCode=1});
+
+async function writtenObservationTest(){
+  const noop=()=>{},node={addEventListener:noop,dataset:{},classList:{toggle:noop},style:{setProperty:noop}};
+  const ctx=vm.createContext({document:{addEventListener:noop,querySelector:()=>node,querySelectorAll:()=>[],body:node,documentElement:node},
+    window:{addEventListener:noop,scrollTo:noop},location:{hash:''},navigator:{},crypto:require('node:crypto').webcrypto,
+    setInterval:noop,setTimeout:noop,clearTimeout:noop});
+  const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8'), evalInApp=js=>vm.runInContext(js,ctx);
+  evalInApp(read('index.html').match(/<script>([\s\S]*?)<\/script>/)[1]);
+  for(const script of ['first-decisions.js','transfer.js','workspace.js','campus.js'])evalInApp(read(script));
+  ctx.patient=JSON.parse(read('data/bank.json')).items.find(q=>q.objective_id==='acute.postprocedure_hypotension'&&q.initial_decisions);
+  evalInApp(`go=()=>{};render=()=>{};toast=()=>{};save=async()=>{};persistWorkspace=()=>{};persistSession=()=>{};
+    ingestData([{items:[patient]}],'manual');startSession([patient.id]);vQuestion();
+    session.reasoning='My pre-choice assessment';freezePrediction();
+    session.decisionPicks=Object.fromEntries(patient.initial_decisions.map(r=>[r.id,r.id==='escalation'?r.choices.find(c=>c.id!==r.key).id:r.key]));
+    lockClinicalJudgment();session.choice=patient.answer;session.conf=3;`);
+  await evalInApp('submit()');
+  evalInApp("const submitted=S.attempts[0], origin=writtenHandoffId(submitted)");
+  assert.equal(evalInApp('Object.keys(workspace().roundAttempts||{}).length'),0);
+  assert.equal(evalInApp('handoffObservationTarget().sourceAttemptId'),evalInApp('origin'));
+  assert.equal(evalInApp('openHandoffObservation(origin)'),true);
+  assert.ok(evalInApp('vSkills().includes(patient.stem)&&vSkills().includes("모의 전화 보고")'));
+  evalInApp(`const station=campus().skills[selectedSkill];station.draft={...station.draft,evidence:'peer',observerRole:'peer',
+    attested:true,assistance:'independent',notes:'receiver confirmed the actual phone call',criticalRatings:{3:'adequate'},
+    heardRisk:'heard',repeatRisk:'Persistent fall in blood pressure',heardRequest:'heard',repeatRequest:'Come now to assist'};`);
+  assert.ok(evalInApp("skillPracticeResult(station,{...station.draft,attested:false}).error"));
+  assert.equal(evalInApp("skillPracticeResult(station,{...station.draft,heardRequest:'unobserved',repeatRequest:''}).log.handoffObservation.status"),'unobserved');
+  await evalInApp('recordSkillPractice()');
+  assert.equal(evalInApp('handoffObservationTarget(origin).status'),'observed-independent');
+  assert.equal(evalInApp('station.logs[0].handoffObservation.source.revision'),evalInApp('submitted.revision'));
+  assert.equal(evalInApp('station.logs[0].handoffObservation.receiverRequest.text'),'Come now to assist');
+  assert.equal(evalInApp("writtenPathwayEvidence().gaps.some(g=>g.id==='escalation')"),true);
+  evalInApp(`const earlier=submitted.ts-10000,allMet={...submitted,ts:earlier,clinicalJudgment:{...submitted.clinicalJudgment,lockedAt:earlier,
+    decisions:submitted.clinicalJudgment.decisions.map(d=>({...d,correct:true}))}};
+    S.attempts.push(allMet);const textId=writtenHandoffId(allMet);`);
+  assert.equal(evalInApp('handoffObservationTarget(textId)'),null);
+  evalInApp("saveFirstTextReview(allMet,'instructor',{danger:'met',action:'met',escalation:'missed'},true)");
+  assert.equal(evalInApp('handoffObservationTarget(textId).source.reviewRole'),'instructor');
+  assert.equal(evalInApp('handoffObservationTarget(textId).requiredRank'),2);
+  assert.equal(evalInApp('openHandoffObservation(textId)'),true);
+  evalInApp(`station.draft={...station.draft,evidence:'supervised',setting:'clinical',observerRole:'faculty',
+    attested:true,assistance:'independent',notes:'receiver confirmed',criticalRatings:{3:'adequate'},heardRisk:'heard',
+    repeatRisk:'I heard the deterioration',heardRequest:'heard',repeatRequest:'I heard the immediate call for help'};`);
+  await evalInApp('recordSkillPractice()');
+  assert.equal(evalInApp('handoffObservationTarget(textId).setting'),'simulation');
+  assert.equal(evalInApp('handoffObservationTarget(textId).status'),'observed-independent');
+  evalInApp(`const mock={...submitted,ts:earlier-10,mode:'mock'},skipped={...submitted,ts:earlier-20,skipped:true};
+    S.attempts.push(mock,skipped);S.bank[patient.id].stem='replacement edition, different scenario';`);
+  assert.equal(evalInApp('handoffObservationTarget(writtenHandoffId(mock))'),null);
+  assert.equal(evalInApp('handoffObservationTarget(writtenHandoffId(skipped))'),null);
+  assert.equal(evalInApp('handoffObservationTarget(origin).sourceContext===patient.stem'),true);
+  assert.notEqual(evalInApp('writtenHandoffId({...submitted,revision:"new edition"})'),evalInApp('origin'));
+  // A skills-only backup still carries the original vignette and the receiver's actual readback.
+  evalInApp(`const restored=JSON.parse(JSON.stringify(station));S.attempts=[];delete S.bank[patient.id];
+    campus().skills[selectedSkill]=mergeSkillRecords({},restored);`);
+  assert.equal(evalInApp('handoffObservationTarget(origin).sourceContext===patient.stem'),true);
+  assert.equal(evalInApp('handoffObservationTarget(origin).status'),'observed-independent');
+  console.log('PASS: keyed or reviewed written escalation, original case SBAR with no prior round, verified readback and durable edition-specific evidence');
+}
+writtenObservationTest().catch(error=>{console.error(error);process.exitCode=1});
+
 const handlers = [];
 const dummy = {dataset:{}, addEventListener() {}, classList:{toggle() {}}, style:{setProperty() {}}};
 const school = vm.createContext({

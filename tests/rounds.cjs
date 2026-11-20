@@ -8,7 +8,7 @@ const state = {preferences: {}};
 let serial = 0;
 const context = vm.createContext({
   workspace: () => state,
-  persistWorkspace() {}, render() {}, toast() {}, esc: String, pageHeading: () => '', dstr: String,
+  persistWorkspace() {}, render() {}, go() {}, toast() {}, esc: String, pageHeading: () => '', dstr: String,
   uid: () => 'attempt-' + (++serial),
   app: {addEventListener(type, fn) { handlers[type] = fn; }, querySelector: () => null},
   window: {scrollTo() {}, KMLEVisualPractice: {}}
@@ -102,3 +102,61 @@ assert.equal(legacy.handoff, 'Old handoff');
 assert.equal(legacy.firstPlan, undefined);
 assert.equal(state.rounds['clinic-return'].done, false);
 console.log('PASS: first encounter, immutable first plan/handoff, receiver readback, correction and repeat, honest debrief and legacy history');
+
+const pick=(step,value)=>handlers.change({target:{dataset:{roundInitial:step},value}});
+const match=value=>handlers.change({target:{dataset:{roundMatch:''},value}});
+const day=86400000;
+context.clock=1700000000000;
+run('Date.now=()=>clock');
+const status=()=>JSON.parse(run('JSON.stringify(roundPathwayStatus())'));
+const open=(id)=>run('openPathwayRound('+JSON.stringify(id)+')');
+const [blue,amber]=run('ROUNDS.filter(c=>c.pathway).map(c=>c.id)');
+const firstDay=context.clock;
+assert.equal(status().next.caseId,blue);
+assert.equal(status().started,false);
+assert.equal(open(amber),false);
+act('switch',4);
+assert.notEqual(run('roundIndex'),4);
+assert.equal(open(blue),true);
+assert.doesNotMatch(screen(), /심낭|data-round="inspect"|data-round-initial|팀이 도착/);
+act('inspect',0);act('act',1);act('finish');
+assert.equal(state.rounds[blue].seen.length,0);
+assert.equal(state.rounds[blue].done,false);
+act('initial-lock');
+assert.equal(state.rounds[blue].initial,undefined);
+write('narrative','Immediate help; assess bedside perfusion');act('initial-lock');
+write('narrative','post-choice overwrite');
+pick('recognition','now');pick('escalation','test');pick('bedside','abc');
+act('initial-commit');
+assert.equal(state.rounds[blue].initial.decidedAt,undefined);
+match('same');act('initial-commit');pick('escalation','call');match('changed');
+const original=state.rounds[blue].initial;
+assert.equal(original.narrative,'Immediate help; assess bedside perfusion');
+assert.equal(original.picks.escalation,'test');assert.equal(original.match,'same');
+assert.match(screen(),/간호사가 응급대응팀을 대신 호출/);
+act('inspect',3);write('hypothesis','Cause plan');act('options');act('act',0);act('act',1);act('finish');
+assert.deepEqual(status().gaps.map(x=>x.id).sort(),['cause','escalation']);
+assert.equal(status().next.dueAt,firstDay+7*day);
+assert.equal(status().evidence.independent,1);
+assert.equal(open(amber),false);
+act('retry');act('initial-assisted');pick('recognition','now');pick('escalation','call');pick('bedside','abc');act('initial-commit');
+act('options');act('act',1);act('finish');
+assert.equal(status().gaps.length,2);assert.equal(status().evidence.assisted,1);
+context.clock+=7*day;
+assert.equal(open(amber),true);
+assert.doesNotMatch(screen(),/용종|혈변|data-round="inspect"/);
+write('narrative','Unstable, call team now, bedside ABC support.');act('initial-lock');
+pick('recognition','now');pick('escalation','call');pick('bedside','abc');match('same');act('initial-commit');
+act('inspect',0);write('hypothesis','bleeding: support perfusion and request source control');
+act('options');act('act',2);act('finish');
+assert.equal(status().gaps.length,0);assert.equal(status().evidence.independentPassed,1);
+assert.equal(status().evidence.delayedIndependentPassed,1);
+assert.equal(status().next,null);assert.equal(status().exhausted,true);
+// A merged record from another device may have opened the sibling before the gap was due.
+const sibling=Object.values(state.roundAttempts).find(a=>a.caseId===amber);
+sibling.openedAt=firstDay+day;
+assert.equal(status().gaps.length,2);
+assert.equal(status().evidence.delayedIndependentPassed,0);
+sibling.openedAt=firstDay+7*day;sibling.initial.match='changed';
+assert.equal(status().gaps.length,2);
+console.log('PASS: two unseen calls, locked cue-free response, observed emergency choices, delayed cross-patient transfer and conservative merged evidence');

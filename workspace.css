@@ -219,3 +219,7 @@ input[type=checkbox] { accent-color: var(--acc); }
 .transfer-card .hint,.next-study p { margin:.65rem 0; }
 .transfer-card .btn,.next-study .btn { margin:.3rem 0; }
 .round-card video,.round-card img { max-width:100%; height:auto; }
+.pathway-lane { padding:.8rem 0; line-height:1.6; overflow-wrap:anywhere; }
+.pathway-lane + .pathway-lane { border-top:1px solid var(--line); }
+.pathway-lane h3,.pathway-lane p { margin:0 0 .45rem; }
+.recall-panel select,[data-text-review] select { display:block; max-width:100%; margin:.4rem 0; min-height:42px; }

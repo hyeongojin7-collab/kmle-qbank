@@ -3,9 +3,9 @@
   "batch_meta": {
     "batch_id": "GEN-PILOT-CV-20261120",
     "created_at": "2026-11-20",
-    "item_count": 10,
+    "item_count": 13,
     "language": "ko-KR",
-    "notes": "새로 작성한 가상 임상증례. 4개 학습목표마다 기본 문항과 미노출 전이 문항을 연결한다. 2개 목표에는 7일·30일 변형이 각각 있다. 저자 도구가 인용 자료를 대조한 편집본이며 독립 임상의 감수나 실제 시험 난도 보정은 이루어지지 않았다.",
+    "notes": "새로 작성한 가상 임상증례. 5개 학습목표마다 기본 문항과 미노출 전이 문항을 연결한다. 시술 후 저혈압 증례는 위험 인식, 첫 행동, 긴급 인계 요청을 각각 확인한다. 공개 근거 대조를 거친 편집본이며 독립 임상의 감수와 실제 시험 난도 보정은 아직 시행하지 않았다.",
     "independent_clinical_review": false
   },
   "items": [
@@ -1063,6 +1063,550 @@
         "kind": "original AI-authored educational vignette",
         "is_actual_exam_item": false,
         "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-POSTPROC-01",
+      "revision": 1,
+      "objective_id": "acute.postprocedure_hypotension",
+      "variant_role": "index",
+      "subject": "내과",
+      "system": "알레르기",
+      "subtopic": "아나필락시스",
+      "topic": "검사실에서 일어서려던 환자",
+      "learning_objective": "시술 후 급격한 혈압 저하에서 위협적인 관찰을 설명하고, 현재 원인에 맞는 첫 행동과 즉시 필요한 도움을 요청한다.",
+      "question_type": "next_best_step",
+      "stem": "47세 여성이 조영증강 복부 CT를 마치고 관찰 구역에 있다. 주입 7분 뒤 목이 잠기는 느낌이 든다며 일어서지 못한다. 3분 전 124/76이던 혈압은 누워서 다시 재도 78/46 mmHg다. 맥박 122회/분, 산소포화도 92%이며 양쪽에서 천명이 들린다. 두드러기는 보이지 않는다. 말초 맥박은 만져지고 정맥로는 방금 제거했다. 담당 간호사와 학생의사가 함께 있다.",
+      "question": "초기 대응과 첫 수분 동안의 재평가를 올바르게 연결한 계획은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "기관지확장제 흡입 후 천명과 산소포화도를 다시 평가한다."
+        },
+        {
+          "label": "B",
+          "text": "등장성 수액으로 혈압을 회복시키고 목소리 변화를 추적한다."
+        },
+        {
+          "label": "C",
+          "text": "H1 항히스타민제 투여 뒤 피부와 혈압 반응을 확인한다."
+        },
+        {
+          "label": "D",
+          "text": "IM epinephrine 후 호흡·관류를 재평가해 재투여를 정한다."
+        },
+        {
+          "label": "E",
+          "text": "Atropine 투여 뒤 심박수와 기립 시 혈압 변화를 측정한다."
+        }
+      ],
+      "answer": "D",
+      "initial_decisions": [
+        {
+          "id": "danger",
+          "prompt": "어떤 관찰이 현재 위험도를 가장 잘 설명하는가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "누워 있어도 계속되는 저혈압과 새 음성·호흡 변화"
+            },
+            {
+              "id": "b",
+              "text": "조영제 노출 뒤 나타난 발진의 유무와 피부 범위"
+            },
+            {
+              "id": "c",
+              "text": "일어서려다 생긴 어지럼과 말초 맥박이 만져지는 점"
+            }
+          ],
+          "key": "a",
+          "criterion": "반복 확인한 저혈압을 새 기도·호흡 소견과 연결해 생명을 위협하는 급성 전신 반응을 의심했는지 본다. 피부 병변을 필수로 요구하지 않는다."
+        },
+        {
+          "id": "action",
+          "prompt": "지금 팀이 가장 먼저 추진할 원인 치료는?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "정맥로를 확보하고 수액 반응을 본 뒤 약제를 정한다."
+            },
+            {
+              "id": "b",
+              "text": "기관지확장제를 흡입시키고 천명이 남는지 본다."
+            },
+            {
+              "id": "c",
+              "text": "Epinephrine을 즉시 근육주사하도록 요청한다."
+            }
+          ],
+          "key": "c",
+          "criterion": "권한 있는 팀에 IM epinephrine을 지체 없이 요청했는지 본다. 산소·환자 자세·정맥로·수액 같은 병행 조치만 언급했다면 구분한다."
+        },
+        {
+          "id": "escalation",
+          "prompt": "환자 곁에서 어떤 호출과 요청을 할 것인가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "조영제 담당 영상의에게 약제 확인과 기록 검토를 요청한다."
+            },
+            {
+              "id": "b",
+              "text": "신속대응팀을 지금 호출해 기도·순환 소생 지원을 요청한다."
+            },
+            {
+              "id": "c",
+              "text": "알레르기 당직의에게 우선 연락해 반응 등급 판정을 요청한다."
+            }
+          ],
+          "key": "b",
+          "criterion": "지금 소생 가능한 팀을 호출한다는 시점과 대상, 기도·순환 지원 요청을 명시하는지 본다. 단순 사실 통보나 사후 알레르기 의뢰와 구별한다."
+        }
+      ],
+      "model_handoff": "“CT 관찰실 47세 환자가 조영제 7분 뒤 목소리가 바뀌고 양측 천명이 생겼습니다. 누워서도 BP 78/46, HR 122로 아나필락시스 쇼크가 의심됩니다. 지금 환자 곁으로 와서 IM epinephrine 투여와 기도·순환 소생을 함께 해 주세요.”",
+      "causal_chain": [
+        "조영제 직후 기도·기관지와 혈관계가 함께 침범된다.",
+        "혈관 확장과 투과성 증가로 전신 관류가 감소할 수 있다.",
+        "IM epinephrine과 소생팀 호출을 병행하고 호흡·순환 반응으로 다음 처치를 정한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "기도 경련은 설명하지만 약한 맥박과 지속 저혈압을 치료하지 못한다.",
+          "correct_when": "초기 epinephrine 투여 뒤에도 기관지경련이 남으면 흡입제를 보조적으로 고려한다.",
+          "misconception": "지표 또는 약제의 목표를 혼동함",
+          "misconception_id": "genesis.target"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "수액은 순환을 지지하지만 기도 침범과 전신 반응의 첫 약물 치료를 지연시킬 수 없다.",
+          "correct_when": "정맥로 확보 뒤 저혈압에 대해 epinephrine과 함께 결정질액을 투여한다.",
+          "misconception": "결정적 처치를 뒤로 미룸",
+          "misconception_id": "genesis.time"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "피부 소견이 없어도 호흡과 순환이 모두 위협받고 있다. 항히스타민제는 이를 신속하게 되돌리지 못한다.",
+          "correct_when": "생명을 위협하는 문제가 해소된 뒤 남은 두드러기·가려움에 쓸 수 있다.",
+          "misconception": "보조약을 원인 치료로 선택함",
+          "misconception_id": "genesis.drug"
+        },
+        "D": {
+          "verdict": "correct",
+          "why_best": "조영제 노출 후 빠르게 생긴 후두 증상, 기관지경련, 지속 저혈압은 아나필락시스를 강하게 지지한다. 신속대응팀을 호출하고 첫 치료를 지체하지 않는다. ABC 재평가에서 호흡·순환 장애가 지속되면 약 5분 뒤 IM epinephrine 재투여를 고려한다.",
+          "correct_when": "즉시형 반응에서 기도·호흡 또는 순환이 위협받는 경우다. 피부 증상만 있고 ABC가 안정적인 환자는 중증도에 맞춰 별도로 평가한다.",
+          "KEY": "노출 직후의 기도 변화와 지속 저혈압은 피부 소견이 없어도 즉시 대응해야 할 조합이다.",
+          "HBM": "발진을 확인하려고 기다리지 않는다. 환자를 눕힌 뒤 바로 회복되고 서맥이 뚜렷하며 기도·호흡 변화가 없다면 미주신경 반응 등 다른 원인을 다시 비교한다.",
+          "reasoning_skeleton": "조영제 직후 기도·기관지와 혈관계가 함께 침범된다. → 혈관 확장과 투과성 증가로 전신 관류가 감소할 수 있다. → IM epinephrine과 소생팀 호출을 병행하고 호흡·순환 반응으로 다음 처치를 정한다.",
+          "가장 강한 경쟁 선택지": "B · 수액은 순환을 지지하지만 기도 침범과 전신 반응의 첫 약물 치료를 지연시킬 수 없다."
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "이 환자는 서맥 대신 빈맥이며 누워서도 저혈압이 지속된다. 천명과 음성 변화도 단순 미주신경 반응에 맞지 않는다.",
+          "correct_when": "두드러기·호흡기 침범 없이 뚜렷한 서맥과 저혈압이 지속되는 미주신경 반응에서는 별도로 검토한다.",
+          "misconception": "악화의 기전을 잘못 판단함",
+          "misconception_id": "genesis.cause"
+        }
+      },
+      "takeaway": "노출 직후의 기도 변화와 지속 저혈압은 피부 소견이 없어도 즉시 대응해야 할 조합이다.",
+      "misconception_ids": [
+        "genesis.target",
+        "genesis.time",
+        "genesis.drug",
+        "genesis.cause"
+      ],
+      "misconception_tags": [
+        "지표 또는 약제의 목표를 혼동함",
+        "결정적 처치를 뒤로 미룸",
+        "보조약을 원인 치료로 선택함",
+        "악화의 기전을 잘못 판단함"
+      ],
+      "source_refs": [
+        {
+          "file": "ESUR Contrast Media Safety Committee, immediate hypersensitivity reactions in adults (2025)",
+          "section": "Management of severe immediate hypersensitivity reactions, Table 3",
+          "url": "https://doi.org/10.1007/s00330-025-11675-1"
+        },
+        {
+          "file": "Resuscitation Council UK, Emergency treatment of anaphylaxis",
+          "section": "Healthcare providers algorithm; repeating IM adrenaline for persistent ABC problems",
+          "url": "https://www.resus.org.uk/library/additional-guidance/guidance-anaphylaxis/emergency-treatment"
+        },
+        {
+          "file": "AHRQ TeamSTEPPS, SBAR",
+          "section": "Situation, Background, Assessment, Recommendation or Request",
+          "url": "https://www.ahrq.gov/teamstepps-program/curriculum/communication/tools/sbar.html"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "공개 지침 대조를 거친 교육용 가상 사례. 독립 임상의의 검토와 수험생 난이도 검증은 아직 시행하지 않았다.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-POSTPROC-07",
+      "revision": 1,
+      "objective_id": "acute.postprocedure_hypotension",
+      "variant_role": "transfer",
+      "transfer_days": 7,
+      "subject": "내과",
+      "system": "호흡기",
+      "subtopic": "흉막과 종격동 질환",
+      "topic": "병실로 돌아온 뒤의 흉통",
+      "learning_objective": "시술 후 급격한 혈압 저하에서 위협적인 관찰을 설명하고, 현재 원인에 맞는 첫 행동과 즉시 필요한 도움을 요청한다.",
+      "question_type": "next_best_step",
+      "stem": "56세 남성이 장기 정맥영양을 위한 오른쪽 쇄골하 중심정맥관 삽입을 마치고 병실로 돌아왔다. 10분 뒤 오른쪽 가슴이 아프다며 숨을 몰아쉰다. 산소를 투여하는 중에도 SpO₂가 95%에서 84%로, 혈압은 116/72에서 76/44 mmHg로 떨어졌다. 맥박 132회/분, 오른쪽 가슴의 호흡음은 거의 들리지 않고 타진음이 왼쪽보다 크다. 삽입 부위는 건조하다. 이동식 흉부 X선 촬영을 기다리고 있다.",
+      "question": "지금 시행할 처치와 이후 평가를 가장 적절하게 연결한 것은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "침상 흉부 X선으로 흉강 공기의 범위를 정량하고 배액 여부를 정한다."
+        },
+        {
+          "label": "B",
+          "text": "우측 흉강을 긴급 감압하고 혈압·호흡과 후속 흉관 배액을 확인한다."
+        },
+        {
+          "label": "C",
+          "text": "수액으로 관류압을 먼저 회복시키고 헤모글로빈과 흉부 영상을 비교한다."
+        },
+        {
+          "label": "D",
+          "text": "기도삽관과 양압환기를 먼저 시행하고 양측 호흡음 변화를 살핀다."
+        },
+        {
+          "label": "E",
+          "text": "심장초음파로 우심실 부담을 확인한 뒤 폐혈관 중재팀을 호출한다."
+        }
+      ],
+      "answer": "B",
+      "initial_decisions": [
+        {
+          "id": "danger",
+          "prompt": "어떤 변화에 가장 높은 우선순위를 둘 것인가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "천자 부위 드레싱이 마른 상태와 시술 직후의 통증"
+            },
+            {
+              "id": "b",
+              "text": "시술 쪽 호흡음 소실에 동반된 산소포화도·혈압 저하"
+            },
+            {
+              "id": "c",
+              "text": "빈맥이 나타난 시점과 정맥관을 삽입한 이유"
+            }
+          ],
+          "key": "b",
+          "criterion": "시술 쪽의 급격한 환기 비대칭과 혈역학적 불안정을 연결해 긴장성 기흉 또는 치명적 흉강 내 압력 상승을 의심하는지 본다."
+        },
+        {
+          "id": "action",
+          "prompt": "첫 원인 교정 조치로 팀에 무엇을 요청할 것인가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "영상 결과를 기다리지 않고 숙련자에게 우측 흉강 감압을 요청한다."
+            },
+            {
+              "id": "b",
+              "text": "빠른 이동식 X선으로 기흉 크기를 확인하고 배액 요청을 결정한다."
+            },
+            {
+              "id": "c",
+              "text": "혈압을 수액으로 먼저 안정시킨 뒤 시술 부위 CT를 요청한다."
+            }
+          ],
+          "key": "a",
+          "criterion": "불안정한 환자의 의심되는 긴장성 기흉에 대해 적절히 훈련된 팀의 신속한 우측 감압을 영상 대기보다 앞에 두는지 본다."
+        },
+        {
+          "id": "escalation",
+          "prompt": "어떤 내용으로 도움을 요청할 것인가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "영상의에게 카테터 위치와 흉막선을 우선 판독해 달라고 요청한다."
+            },
+            {
+              "id": "b",
+              "text": "혈관접근팀에 라인 사용을 보류하고 위치 재확인을 요청한다."
+            },
+            {
+              "id": "c",
+              "text": "소생팀과 감압 가능한 담당자에게 지금 침상 처치를 요청한다."
+            }
+          ],
+          "key": "c",
+          "criterion": "소생팀과 감압할 수 있는 담당자를 즉시 침상으로 요청하고, 우측·시술 직후·혈압 및 산소 저하를 인계하는지 본다."
+        }
+      ],
+      "model_handoff": "“우측 쇄골하 정맥관 삽입 10분 뒤 갑작스러운 흉통·호흡곤란이 생겼습니다. 우측 호흡음이 거의 없고 BP 76/44, 산소 중 SpO₂ 84%입니다. 우측 긴장성 기흉이 의심되니 소생팀과 감압 가능한 선생님이 지금 침상으로 와 주세요.”",
+      "causal_chain": [
+        "시술 후 흉강 내 공기와 압력이 증가한다.",
+        "편측 환기 저하와 정맥환류 감소가 저산소혈증·폐쇄성 쇼크로 나타난다.",
+        "숙련자에게 즉시 감압을 요청하고, 반응과 후속 배액을 확인한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "상태가 불안정해 영상 대기 중 관류가 더 나빠질 수 있다. 긴장성 기흉은 임상 소견만으로 긴급히 감압해야 할 수 있다.",
+          "correct_when": "호흡과 혈압이 안정된 시술 후 기흉에서는 영상과 증상을 함께 보고 처치를 정한다.",
+          "misconception": "결정적 처치를 뒤로 미룸",
+          "misconception_id": "genesis.time"
+        },
+        "B": {
+          "verdict": "correct",
+          "why_best": "시술 직후 편측 호흡음 소실·과공명과 저산소혈증·쇼크가 동반됐다. 숙련된 팀이 영상 때문에 감압을 늦추지 않도록 요청한다. 감압 직후 관류와 환기를 확인하고 필요한 흉관 배액과 위치 확인을 이어간다.",
+          "correct_when": "시술 후 일측 호흡음 소실에 급속한 저산소혈증·저혈압이 동반된 경우다. 안정된 기흉은 영상과 증상에 따라 관찰·배액을 결정한다.",
+          "KEY": "호흡음 비대칭만으로 긴장 생리를 단정하지 않는다. 급속한 산소화·관류 악화가 영상 대기 여부를 바꾼다.",
+          "HBM": "검사가 치료 순서를 바꿀 시간을 환자가 견디는지 판단한다. 안정된 시술 후 기흉은 영상과 증상으로 계획할 수 있지만, 쇼크가 동반되면 긴급 감압을 요청한다.",
+          "reasoning_skeleton": "시술 후 흉강 내 공기와 압력이 증가한다. → 편측 환기 저하와 정맥환류 감소가 저산소혈증·폐쇄성 쇼크로 나타난다. → 숙련자에게 즉시 감압을 요청하고, 반응과 후속 배액을 확인한다.",
+          "가장 강한 경쟁 선택지": "A · 상태가 불안정해 영상 대기 중 관류가 더 나빠질 수 있다. 긴장성 기흉은 임상 소견만으로 긴급히 감압해야 할 수 있다."
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "흉강 내 출혈도 감별해야 하지만 이 환자의 과공명과 급격한 일측 환기 저하는 공기 축적을 지지한다. 수액은 폐쇄 기전을 해소하지 못한다.",
+          "correct_when": "탁음, 흉막액, 지속 출혈 소견이 있으면 출혈 소생과 지혈·배액 계획을 세운다.",
+          "misconception": "악화의 기전을 잘못 판단함",
+          "misconception_id": "genesis.cause"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "울혈된 흉강의 높은 압력을 해소하기 전 양압을 가하면 정맥환류가 더 감소할 수 있다. 필요한 기도 지원과 즉각적인 감압을 조율한다.",
+          "correct_when": "기도 확보가 불가피하면 숙련된 팀이 감압을 포함한 즉시 소생과 함께 진행한다.",
+          "misconception": "환기와 관류의 상호작용을 놓침",
+          "misconception_id": "genesis.pressure"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "폐색전증도 폐쇄성 쇼크를 만들지만 시술 쪽의 급성 호흡음 소실과 과공명을 더 잘 설명하는 원인이 있다.",
+          "correct_when": "흉강 감압 후에도 불안정하거나 폐색전증을 시사하는 별도 단서가 있으면 다른 원인을 재평가한다.",
+          "misconception": "악화의 기전을 잘못 판단함",
+          "misconception_id": "genesis.cause"
+        }
+      },
+      "takeaway": "호흡음 비대칭만으로 긴장 생리를 단정하지 않는다. 급속한 산소화·관류 악화가 영상 대기 여부를 바꾼다.",
+      "misconception_ids": [
+        "genesis.time",
+        "genesis.cause",
+        "genesis.pressure"
+      ],
+      "misconception_tags": [
+        "결정적 처치를 뒤로 미룸",
+        "악화의 기전을 잘못 판단함",
+        "환기와 관류의 상호작용을 놓침"
+      ],
+      "source_refs": [
+        {
+          "file": "British Thoracic Society Clinical Statement on pleural procedures (2023)",
+          "section": "Preprocedural imaging; urgent treatment without imaging for tension pneumothorax",
+          "url": "https://www.brit-thoracic.org.uk/document-library/clinical-statements/pleural-procedures/bts-clinical-statement-on-pleural-procedures/"
+        },
+        {
+          "file": "Irish Association for Emergency Medicine, Management of patients with tension pneumothorax (2024)",
+          "section": "Clinical features and management; central venous catheter insertion, decompression and chest drain",
+          "url": "https://iaem.ie/wp-content/uploads/wpfd/preview_files/Management-of-patients-with-tension-pneumothorax-in-the-emergency-department-V1.2%28669aee218851553304392c2497857c4d%29.pdf"
+        },
+        {
+          "file": "AHRQ TeamSTEPPS, SBAR",
+          "section": "Situation, Background, Assessment, Recommendation or Request",
+          "url": "https://www.ahrq.gov/teamstepps-program/curriculum/communication/tools/sbar.html"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "공개 지침 대조를 거친 교육용 가상 사례. 독립 임상의의 검토와 수험생 난이도 검증은 아직 시행하지 않았다.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-POSTPROC-30",
+      "revision": 1,
+      "objective_id": "acute.postprocedure_hypotension",
+      "variant_role": "transfer",
+      "transfer_days": 30,
+      "subject": "내과",
+      "system": "호흡기",
+      "subtopic": "폐기능의 장애",
+      "topic": "회복실의 첫 재측정",
+      "learning_objective": "시술 후 급격한 혈압 저하에서 위협적인 관찰을 설명하고, 현재 원인에 맞는 첫 행동과 즉시 필요한 도움을 요청한다.",
+      "question_type": "next_best_step",
+      "stem": "67세 남성이 fentanyl과 midazolam으로 진정한 상부 위장관 내시경을 마친 지 6분이다. 회복실 간호사가 이전보다 깨우기 어렵다고 한다. 이름을 부르고 자극해도 눈을 잠깐 뜰 뿐이다. 코줄 산소를 투여 중이며 SpO₂는 94%, 맥박은 58회/분으로 만져진다. 1분을 직접 세니 가슴이 얕게 네 번 움직인다. 호기말 CO₂는 41에서 63 mmHg로 늘고 호기 사이 간격이 길어졌다. 혈압은 126/78에서 84/48 mmHg로 떨어졌다. 산소, 백마스크, 구조약과 호출 장치가 옆에 있다.",
+      "question": "환자 곁의 팀이 먼저 시행할 처치와 이후 감시 항목을 가장 잘 연결한 것은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "기도를 열고 백마스크로 환기를 보조하며 호흡·의식·혈압 회복을 재평가한다."
+        },
+        {
+          "label": "B",
+          "text": "Naloxone을 투여하고 산소포화도 추세로 추가 호흡 보조 여부를 정한다."
+        },
+        {
+          "label": "C",
+          "text": "산소 유량을 높이고 동맥혈가스로 이산화탄소 상승 정도를 확정한다."
+        },
+        {
+          "label": "D",
+          "text": "수액으로 혈압을 지지하고 경과 중 호흡수가 회복되는지 살핀다."
+        },
+        {
+          "label": "E",
+          "text": "서맥에 atropine을 투여하고 심박수가 오른 뒤 호기말 CO₂를 확인한다."
+        }
+      ],
+      "answer": "A",
+      "initial_decisions": [
+        {
+          "id": "danger",
+          "prompt": "어느 관찰이 가장 시급한 악화를 나타내는가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "산소 투여 중 SpO₂가 94%를 유지하고 맥박이 만져지는 점"
+            },
+            {
+              "id": "b",
+              "text": "회복실에서 맥박 58회가 확인되고 이전보다 혈압이 낮아진 점"
+            },
+            {
+              "id": "c",
+              "text": "얕은 호흡이 분당 4회로 줄며 CO₂가 오르고 각성이 저하된 점"
+            }
+          ],
+          "key": "c",
+          "criterion": "산소 투여 중의 SpO₂에 안심하지 않고 호흡수·흉곽 움직임·호기말 CO₂와 의식 변화에서 유효 환기 실패를 알아차렸는지 본다."
+        },
+        {
+          "id": "action",
+          "prompt": "지금 환자 곁에서 무엇을 먼저 시작할 것인가?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "길항제를 투여한 뒤 자발 호흡이 돌아오는지 확인한다."
+            },
+            {
+              "id": "b",
+              "text": "기도를 열고 산소를 연결한 백마스크로 환기를 지지한다."
+            },
+            {
+              "id": "c",
+              "text": "코줄 산소 유량을 올리고 혈액가스 채혈을 준비한다."
+            }
+          ],
+          "key": "b",
+          "criterion": "기도를 확보하고 숙련자가 즉시 보조환기를 시작하도록 요청하는지 본다. 약물 길항이나 산소 증량만 먼저 하고 기다리는 선택과 구분한다."
+        },
+        {
+          "id": "escalation",
+          "prompt": "지금 가장 적절한 호출 내용은?",
+          "choices": [
+            {
+              "id": "a",
+              "text": "기도 구조가 가능한 팀에 즉시 침상 환기·기도 지원을 요청한다."
+            },
+            {
+              "id": "b",
+              "text": "내시경 담당의에게 사용한 진정제 용량을 먼저 확인해 달라고 요청한다."
+            },
+            {
+              "id": "c",
+              "text": "당직의에게 모니터 수치를 보내고 혈액가스 결과를 보고 상의한다."
+            }
+          ],
+          "key": "a",
+          "criterion": "기도 구조 역량을 가진 팀의 즉시 침상 지원을 요청하며 진정약, 분당 호흡수, 의식과 저혈압을 인계하는지 본다."
+        }
+      ],
+      "model_handoff": "“내시경 회복실입니다. Fentanyl과 midazolam 투여 뒤 호흡수 4회, 얕은 호흡·의식저하, EtCO₂ 63, BP 84/48이고 맥박은 있습니다. 즉시 기도 구조팀을 보내 주세요. 여기서 기도를 열고 보조환기를 시작하며 길항제도 준비하겠습니다.”",
+      "causal_chain": [
+        "진정제·opioid 효과로 호흡 중추 및 기도 유지 능력이 저하될 수 있다.",
+        "분당 환기 감소로 CO₂가 상승하고 각성이 악화된다. 산소를 주면 산소포화도 저하가 늦게 나타날 수 있다.",
+        "맥박이 있는 환자에서는 기도·환기를 지지하고 원인 약물과 재진정 위험을 평가한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "correct",
+          "why_best": "맥박은 있지만 유효한 자발 환기가 부족하다. 기도 확보와 보조환기를 즉시 시작하도록 요청하고 구조팀을 호출한다. 약물에 따른 길항제를 준비하되 효과를 기다리면서 환기가 지연되어서는 안 된다.",
+          "correct_when": "맥박이 있으나 자발 환기가 불충분한 환자다. 긴급 환기 보조와 함께 약물 길항 적응을 판단하고 회복 후에도 재진정 여부를 감시한다.",
+          "KEY": "맥박과 SpO₂는 유효한 호흡을 보장하지 않는다. 직접 센 호흡수·깊이, 각성 및 capnogram이 처치의 우선순위를 바꾼다.",
+          "HBM": "진정 후 깨기 어려운 환자는 산소화, 환기, 관류를 각각 평가한다. 유효 환기가 이미 부족하면 길항제의 반응을 기다리지 않는다. 맥박이 없어지면 별도의 심폐소생 경로를 시작한다.",
+          "reasoning_skeleton": "진정제·opioid 효과로 호흡 중추 및 기도 유지 능력이 저하될 수 있다. → 분당 환기 감소로 CO₂가 상승하고 각성이 악화된다. 산소를 주면 산소포화도 저하가 늦게 나타날 수 있다. → 맥박이 있는 환자에서는 기도·환기를 지지하고 원인 약물과 재진정 위험을 평가한다.",
+          "가장 강한 경쟁 선택지": "B · Opioid 성분을 길항할 수 있지만 현재 환기는 현저히 부족하고 benzodiazepine 효과도 가능하다. 산소 투여 중의 SpO₂만으로 환기 회복을 판단하기 어렵다."
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "Opioid 성분을 길항할 수 있지만 현재 환기는 현저히 부족하고 benzodiazepine 효과도 가능하다. 산소 투여 중의 SpO₂만으로 환기 회복을 판단하기 어렵다.",
+          "correct_when": "환기를 지지하면서 opioid 효과가 의심되면 naloxone을 병행하고 재진정을 감시한다.",
+          "misconception": "결정적 처치를 뒤로 미룸",
+          "misconception_id": "genesis.time"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "산소는 산소화를 지지하지만 숨을 대신 내쉬게 하지 않는다. 호흡수, 가슴 움직임과 capnogram이 이미 즉시 환기 보조가 필요함을 보여준다.",
+          "correct_when": "안정화 후 혈액가스는 산염기 상태와 잔여 환기 장애를 평가하는 데 유용하다.",
+          "misconception": "지표 또는 약제의 목표를 혼동함",
+          "misconception_id": "genesis.target"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "수액이 필요할 수 있지만 이 환자에게 가장 즉시 위협적인 변화는 현저한 저환기다. 혈압 회복을 기다리면 이산화탄소 저류가 진행한다.",
+          "correct_when": "효과적인 환기를 지지하면서 저혈압의 지속 여부와 다른 원인을 평가한다.",
+          "misconception": "결정적 처치를 뒤로 미룸",
+          "misconception_id": "genesis.time"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "중심맥은 유지되고 호흡수 4회와 상승하는 호기말 CO₂가 선행 문제를 시사한다. 심박수만 올려도 환기는 회복되지 않는다.",
+          "correct_when": "기도·환기와 가역 원인을 다룬 뒤에도 관류 저하를 동반한 서맥이 지속되면 별도 치료를 평가한다.",
+          "misconception": "악화의 기전을 잘못 판단함",
+          "misconception_id": "genesis.cause"
+        }
+      },
+      "takeaway": "맥박과 SpO₂는 유효한 호흡을 보장하지 않는다. 직접 센 호흡수·깊이, 각성 및 capnogram이 처치의 우선순위를 바꾼다.",
+      "misconception_ids": [
+        "genesis.time",
+        "genesis.target",
+        "genesis.cause"
+      ],
+      "misconception_tags": [
+        "결정적 처치를 뒤로 미룸",
+        "지표 또는 약제의 목표를 혼동함",
+        "악화의 기전을 잘못 판단함"
+      ],
+      "source_refs": [
+        {
+          "file": "ASA et al., Practice Guidelines for Moderate Procedural Sedation and Analgesia 2018",
+          "section": "Emergency support and reversal agents; positive-pressure ventilation when spontaneous ventilation is inadequate",
+          "url": "https://doi.org/10.1097/ALN.0000000000002043"
+        },
+        {
+          "file": "Korean clinical practice guidelines for diagnostic and procedural sedation",
+          "section": "Patient monitoring and capnography in adult procedural sedation",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10834708/"
+        },
+        {
+          "file": "AHRQ TeamSTEPPS, SBAR",
+          "section": "Situation, Background, Assessment, Recommendation or Request",
+          "url": "https://www.ahrq.gov/teamstepps-program/curriculum/communication/tools/sbar.html"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "공개 지침 대조를 거친 교육용 가상 사례. 독립 임상의의 검토와 수험생 난이도 검증은 아직 시행하지 않았다.",
         "source_checked_at": "2026-11-20",
         "independent_clinical_review": false
       }

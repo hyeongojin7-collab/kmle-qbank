@@ -75,8 +75,18 @@ function firstItemPresentation(id){
 }
 function markItemPresentation(id,ts=Date.now()){
   const w=workspace(),starts=w.presentations||(w.presentations={});
-  if(starts[id]!=null&&starts[id]<=ts)return;
-  starts[id]=ts;persistWorkspace();
+  const latest=w.lastPresentations||(w.lastPresentations={});
+  starts[id]=Math.min(starts[id]??ts,ts);
+  latest[id]=Math.max(latest[id]??ts,ts);
+  persistWorkspace();
+}
+function openStudyItem(id,now=Date.now()){
+  if(session.presentation?.qid===id&&session.presentation.index===session.i)return;
+  const w=workspace(),held=w.transferStarts?.[id]?.openedAt;
+  const previous=[lastItemExposure(id),w.lastPresentations?.[id],w.presentations?.[id],
+    held===session.transferAssessment?.openedAt?null:held].filter(Number.isFinite);
+  session.presentation={qid:id,index:session.i,openedAt:now,prior:previous.length?Math.max(...previous):null};
+  markItemPresentation(id,now);
 }
 function markAnswerExposure(id,ts=Date.now()){
   const w=workspace(),records=w.exposures||(w.exposures={}),r=records[id];
@@ -90,7 +100,8 @@ updateSrs=function(id,a){
   if(prior?.last>=a.ts)return;
   const s=prior||{iv:0,reps:0,lapses:0};
   s.reps=(s.reps||0)+1;s.last=a.ts;
-  const needsRelearning=a.recallFirst&&(
+  const incompleteDecision=a.clinicalJudgment?.decisions?.some(d=>d.correct!==true);
+  const needsRelearning=incompleteDecision||a.recallFirst&&(
     a.prediction?.mode!=='written'||a.predictionMatch!=='same'||
     !a.prediction.conf||a.prediction.conf===1);
   const shortExposure=a.priorExposureAt!=null&&(a.ts-a.priorExposureAt)<DAY;
@@ -150,7 +161,11 @@ function retentionInsights(){
     const correct=measured.filter(a=>a.correct&&a.predictionMatch==='same').length;
     return '<tr><td>'+label+'</td><td>'+correct+' / '+measured.length+'</td><td>'+(delayed.length-measured.length)+'</td></tr>';
   }).join('');
-  return '<section class="card"><h2>같은 문항의 지연 회상</h2><p class="mut">직전 풀이 또는 해설 열람 후 경과한 시간입니다. 선택지 전 답을 적고 최종 선택과 같다고 직접 표시한 정답을 셉니다. 구두·미기록·비교 생략은 비교 불가로 집계합니다.</p><div class="tblwrap"><table class="tbl"><tr><th>경과 시간</th><th>최초 판단 유지 정답 / 비교 가능 시도</th><th>비교 불가</th></tr>'+rows+'</table></div></section>';
+  const legacy=known.filter(a=>a.delayBasis!=='recorded-presentation').length;
+  return '<section class="card"><h2>같은 문항에서 본인이 표시한 판단 일치</h2><p class="mut">최종 객관식 정답 중 보기를 보기 전에 적은 답과 같다고 본인이 표시한 횟수입니다. 앱에 기록된 직전 문항 제시·풀이·해설 열람부터 다시 문항을 열 때까지의 간격을 사용합니다.</p>'
+    +(legacy?'<p class="hint">이전 방식의 기록 '+legacy+'건은 풀이·해설 열람 간격을 사용합니다.</p>':'')
+    +'<div class="tblwrap"><table class="tbl"><tr><th>경과 시간</th><th>본인 표시 일치·객관식 정답 / 비교 가능 시도</th><th>비교 불가</th></tr>'+rows+'</table></div></section>'
+    +(typeof firstDecisionInsights==='function'?firstDecisionInsights():'');
 }
 loadLocal=async function(){await oldLoadLocal();
  try{const journal=JSON.parse(localStorage.getItem(JOURNAL_KEY)||'null');if(journal&&journal.updatedAt>(S.meta.workspace?.updatedAt||0))S.meta.workspace=journal;}catch(e){}
@@ -165,22 +180,26 @@ function persistSession(){if(!uiReady)return;workspace().resume=session?JSON.par
 const oldStartSession=startSession;
 startSession=function(ids,recallFirst=false){if(session&&!session.done&&session.ids.length&& !confirm('진행 중인 세션을 새 세션으로 바꿀까요? 제출한 풀이와 노트는 보존됩니다.'))return;oldStartSession(ids,recallFirst);};
 submit=async function(){
-  if(!session||session.done||awaitingRecall()||!session.choice||!session.conf)return;
+  if(!session||session.done||awaitingRecall()||(typeof pendingDecisions==='function'&&pendingDecisions())||!session.choice||!session.conf)return;
   const id=session.ids[session.i],it=S.bank[id];
   if(session.ans[id])return;
   if(!isStudyEligible(it)||!isCurrentSession(session)){toast('문항이 변경되었습니다. 검토 후 새 세션을 시작하세요.','err');return;}
-  const ts=Date.now(),priorExposureAt=lastItemExposure(id),prediction=session.prediction||null;
+  const ts=Date.now(),shown=session.presentation?.qid===id?session.presentation:null,prediction=session.prediction||null;
+  const latestKey=lastItemExposure(id);
+  const priorExposureAt=shown&&latestKey==null?shown.prior:Math.max(shown?.prior??0,latestKey??0)||null;
   const rec={qid:id,ts,choice:session.choice,conf:session.conf,correct:session.choice===it.answer,
     ms:Math.max(0,ts-session.qt),reasoning:session.reasoning||prediction?.text||'',
-    prediction,predictionMatch:currentPredictionMatch(),recallFirst:!!session.recallFirst,
-    priorExposureAt,delayDays:priorExposureAt==null?null:(ts-priorExposureAt)/DAY,
+    prediction,predictionMatch:currentPredictionMatch(),recallFirst:!!(session.recallFirst||it.initial_decisions?.length),
+    clinicalJudgment:session.clinicalJudgment?.qid===id?session.clinicalJudgment:null,
+    priorExposureAt,delayDays:priorExposureAt==null?null:Math.max(0,(shown?.openedAt??ts)-priorExposureAt)/DAY,
+    delayBasis:shown?'recorded-presentation':'answer-or-key',
     revision:itemRevision(it),answerKey:it.answer,
     transferAssessment:session.transferAssessment?.qid===id?session.transferAssessment:null};
   S.attempts.push(rec);updateSrs(id,rec);session.ans[id]=rec;
   render();await save('attempts','srs');
 };
 const oldNext=next;
-next=function(){session.reasoning='';session.optionsOpened=false;session.preConfidence=null;session.prediction=null;session.predictionMatch=null;session.predictionChoice=null;oldNext();};
+next=function(){session.reasoning='';session.optionsOpened=false;session.preConfidence=null;session.prediction=null;session.predictionMatch=null;session.predictionChoice=null;session.clinicalJudgment=null;session.decisionPicks=null;session.presentation=null;oldNext();};
 const oldSkip=skip;
 skip=function(reveal){if(reveal)markAnswerExposure(session.ids[session.i]);oldSkip(reveal);};
 const oldMergeBackup=mergeBackup;
@@ -203,6 +222,11 @@ mergeBackup=function(b){
       if(!Number.isFinite(ts)||ts<=0)continue;
       const starts=w.presentations||(w.presentations={});starts[id]=Math.min(starts[id]||ts,ts);
     }
+    for(const [id,ts] of Object.entries(incoming.lastPresentations||{})){
+      if(!Number.isFinite(ts)||ts<=0)continue;
+      const stamps=w.lastPresentations||(w.lastPresentations={});stamps[id]=Math.max(stamps[id]||0,ts);
+    }
+    if(typeof mergeJudgmentReviews==='function')mergeJudgmentReviews(w,incoming.judgmentReviews);
     for(const [id,other] of Object.entries(incoming.transferStarts||{})){
       if(!Number.isFinite(other?.openedAt))continue;
       const starts=w.transferStarts||(w.transferStarts={}),local=starts[id];
@@ -229,7 +253,7 @@ mergeBackup=function(b){
   recoverLearningState(null);return result;
 };
 const oldDeleteItem=delItem;
-delItem=async function(id){await oldDeleteItem(id);if(!S.bank[id]){delete workspace().notes[id];delete workspace().bookmarks[id];if(workspace().exposures)delete workspace().exposures[id];if(workspace().presentations)delete workspace().presentations[id];if(session?.ids.includes(id)){session.ids=session.ids.filter(x=>x!==id);session.i=Math.min(session.i,session.ids.length);if(session.i>=session.ids.length)session.done=true;}persistSession();}};
+delItem=async function(id){await oldDeleteItem(id);if(!S.bank[id]){delete workspace().notes[id];delete workspace().bookmarks[id];if(workspace().exposures)delete workspace().exposures[id];if(workspace().presentations)delete workspace().presentations[id];if(workspace().lastPresentations)delete workspace().lastPresentations[id];if(session?.ids.includes(id)){session.ids=session.ids.filter(x=>x!==id);session.i=Math.min(session.i,session.ids.length);if(session.i>=session.ids.length)session.done=true;}persistSession();}};
 function metric(value,label,foot,ic){return `<div class="metric"><div class="metric-label">${icon(ic)}${label}</div><div class="metric-value">${value}</div><div class="metric-foot">${foot}</div></div>`;}
 function dailyCounts(){const today=new Date();return Array.from({length:7},(_,i)=>{const d=new Date(today);d.setDate(today.getDate()-6+i);const day=dstr(d);return{day,label:['일','월','화','수','목','금','토'][d.getDay()],n:S.attempts.filter(a=>dstr(a.ts)===day).length};});}
 function emptyLibrary(){return `<div class="card empty"><div class="empty-icon">${icon('book')}</div><h2>아직 저장된 문항이 없어요</h2><p>보유한 문항 JSON 또는 기존 백업을 가져오세요.<br>풀이 기록과 복습 일정이 이 브라우저에 차곡차곡 쌓입니다.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-act="go" data-r="add">${icon('plus')}문항 가져오기</button><button class="btn" data-act="go" data-r="backup">기존 백업 복원</button></div></div>`;}
@@ -295,15 +319,17 @@ function lockedPredictionView(prediction,match,editable){
  return `<section class="reasoning-box"><strong>선택지 전 최초 판단</strong><p style="white-space:pre-wrap">${esc(text)}</p><small>사전 확신도 ${prediction.conf||'미기록'}</small>${editable&&prediction.mode==='written'?'<div class="actions">'+buttons+'</div>':match?'<p>'+esc(labels[match]||'')+'</p>':''}</section>`;
 }
 vQuestion=function(){const id=session.ids[session.i],it=S.bank[id];if(!it)return '<div class="card">문항을 찾을 수 없습니다. <button class="btn" data-act="next">다음</button></div>';const a=session.ans[id],revealed=!!a;
- markItemPresentation(id);
+ openStudyItem(id);
  const recall=awaitingRecall();
- const meta=revealed||(S.meta.showMeta&&!session.recallFirst)?badges(it):'<span class="bdg">분류와 주제는 제출 후 공개됩니다</span>';
- let h=`<div class="study-layout"><div class="study-top"><span class="study-counter">QUESTION <span class="mono">${String(session.i+1).padStart(2,'0')} / ${String(session.ids.length).padStart(2,'0')}</span></span><div class="actions"><button class="btn ghost sm" data-w="bookmark" data-id="${esc(id)}" aria-label="${isBookmarked(id)?'북마크 해제':'북마크'}">${icon('bookmark')}${isBookmarked(id)?'저장됨':'저장'}</button><button class="btn ghost sm" data-w="text-size">글자 ${workspace().preferences.largeText?'작게':'크게'}</button><button class="btn ghost sm" data-w="focus">${icon('focus')}집중</button><button class="btn ghost sm" data-act="endSession">종료</button></div></div><div class="study-progress" aria-label="세션 진행률"><i style="width:${session.i/session.ids.length*100}%"></i></div><div class="card study-card"><div class="qhead">${meta}</div>${qBody(it,{interactive:!revealed,choice:revealed?a.choice:session.choice,hideOptions:recall})}`;
+ const deciding=typeof pendingDecisions==='function'&&pendingDecisions();
+ const meta=revealed||(S.meta.showMeta&&!session.recallFirst&&!it.initial_decisions?.length)?badges(it):'<span class="bdg">분류와 주제는 제출 후 공개됩니다</span>';
+ let h=`<div class="study-layout"><div class="study-top"><span class="study-counter">QUESTION <span class="mono">${String(session.i+1).padStart(2,'0')} / ${String(session.ids.length).padStart(2,'0')}</span></span><div class="actions"><button class="btn ghost sm" data-w="bookmark" data-id="${esc(id)}" aria-label="${isBookmarked(id)?'북마크 해제':'북마크'}">${icon('bookmark')}${isBookmarked(id)?'저장됨':'저장'}</button><button class="btn ghost sm" data-w="text-size">글자 ${workspace().preferences.largeText?'작게':'크게'}</button><button class="btn ghost sm" data-w="focus">${icon('focus')}집중</button><button class="btn ghost sm" data-act="endSession">종료</button></div></div><div class="study-progress" aria-label="세션 진행률"><i style="width:${session.i/session.ids.length*100}%"></i></div><div class="card study-card"><div class="qhead">${meta}</div>${qBody(it,{interactive:!revealed,choice:revealed?a.choice:session.choice,hideOptions:recall||deciding})}`;
  const encounterButton=`<button class="btn ghost sm" data-w="copy-encounter" data-id="${esc(id)}">이 증례로 모의진료 요청문 복사</button>`;
- if(recall)return h+firstJudgmentForm()+'</div></div>';
+ if(recall)return h+(it.initial_decisions?.length?firstClinicalTextForm():firstJudgmentForm())+'</div></div>';
+ if(deciding)return h+clinicalChoicesForm(it)+'</div></div>';
  h+=lockedPredictionView(revealed?a.prediction:session.prediction,revealed?a.predictionMatch:currentPredictionMatch(),!revealed);
  if(!revealed)h+=`<details class="reasoning-box" ${session.reasoning?'open':''}><summary>내 판단 근거 남기기 <span class="mut">· 선택 사항</span></summary><textarea id="reasoning-draft" rows="3" maxlength="5000" aria-label="내 판단 근거" placeholder="핵심 소견 → 기전 → 판단. 왜 이 선지를 골랐나요?">${esc(session.reasoning||'')}</textarea></details><div class="conf"><span class="mut">지금 나의 확신도</span><div class="seg">${[1,2,3].map(c=>`<button data-act="conf" data-c="${c}" class="${session.conf===c?'on':''}" aria-pressed="${session.conf===c}">${c} · ${CONF_KO[c]}</button>`).join('')}</div></div><div class="actions"><button class="btn pri" data-act="submit" ${session.choice&&session.conf?'':'disabled'}>정답 확인 ${icon('arrow')}</button><button class="btn ghost" data-act="skip">건너뛰기</button><button class="btn ghost" data-act="peek">풀이 없이 해설 보기</button></div><div class="hint mut">A–F 선택 · 1–3 확신도 · Enter 제출/다음 · F 집중 모드는 선지 F가 없을 때</div>`;
- else{const post=a.reasoning??session.reasoning;const reasoning=post!==a.prediction?.text?post:'';h+=resultBanner(it,a)+(reasoning?`<details class="reasoning-box"><summary>선택지를 본 뒤 기록한 판단</summary><p style="white-space:pre-wrap;font-size:13px">${esc(reasoning)}</p></details>`:'')+explanation(it,a.choice)+noteEditor(id)+`<div class="actions sticky">${encounterButton}<button class="btn pri" data-act="next">${session.i+1<session.ids.length?'다음 문제':'세션 돌아보기'}${icon('arrow')}</button><button class="btn ghost sm" data-act="flag" data-id="${esc(id)}">${S.flags[id]?'오류 신고 해제':'문항 오류 신고'}</button></div>`;}
+ else{const post=a.reasoning??session.reasoning;const reasoning=post!==a.prediction?.text?post:'';h+=resultBanner(it,a)+(a.clinicalJudgment?clinicalDecisionResult(it,a):'')+(reasoning?`<details class="reasoning-box"><summary>선택지를 본 뒤 기록한 판단</summary><p style="white-space:pre-wrap;font-size:13px">${esc(reasoning)}</p></details>`:'')+explanation(it,a.choice)+noteEditor(id)+`<div class="actions sticky">${encounterButton}<button class="btn pri" data-act="next">${session.i+1<session.ids.length?'다음 문제':'세션 돌아보기'}${icon('arrow')}</button><button class="btn ghost sm" data-act="flag" data-id="${esc(id)}">${S.flags[id]?'오류 신고 해제':'문항 오류 신고'}</button></div>`;}
  return h+'</div></div>';
 };
 resultBanner=function(it,a){

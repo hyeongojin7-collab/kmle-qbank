@@ -94,11 +94,12 @@ const SKILL_STARTERS = {
   }
 };
 const SKILL_EVIDENCE={self:"혼자 연습",peer:"동료가 직접 관찰",supervised:"지도자가 직접 관찰"};
-const SKILL_ASSISTANCE={independent:"참여자 도움 없이 수행",verbal:"말로 단서 제공",hands:"동작을 직접 도와줌",stopped:"중단 또는 시범으로 전환"};
+const SKILL_ASSISTANCE={independent:"참여자 도움 없이 수행",verbal:"말로 단서 제공",hands:"동작을 직접 도와줌",stopped:"중단 또는 시범으로 전환",not_assessed:"도움 수준 미평가"};
 
 function newSkillDraft(){
   return {checks:[],notes:'',evidence:'self',setting:'simulation',assistance:'',remediation:'',interval:'1',
-    observerRole:'',attested:false,focusStep:'',targetLog:'',mappedStep:'',outcome:''};
+    observerRole:'',attested:false,focusStep:'',targetLog:'',mappedStep:'',outcome:'',criticalRatings:{},practiceTarget:null,
+    handoffAttempt:'',heardRisk:'unobserved',heardRequest:'unobserved',repeatRisk:'',repeatRequest:''};
 }
 
 const SKILL_OUTCOMES={corrected:"교정 수행을 확인",coaching:"추가 지도 필요",not_assessed:"이번에 평가하지 않음"};
@@ -199,7 +200,210 @@ function openRubricDialog(s){
   el.addEventListener('close',()=>el.remove());el.showModal();
 }
 
-function skillRecheck(s,draft,checked){
+const SAFETY_STATES={unobserved:'미관찰',adequate:'직접 관찰 · 적절함',assisted:'단서·도움 후 수행',coaching:'직접 관찰 · 교정 필요'};
+const HEARD_STATES={unobserved:'이번에 확인하지 않음',heard:'들었음',missed:'듣지 못함'};
+const HANDOFF_CASES=['recovery-unit','ward-evening','postprocedure-blue','postprocedure-amber'];
+const HANDOFF_SKILL_ID='SKILL-STARTER-sbar';
+
+function handoffStationId(){
+  const skills=campus().skills,critical=SKILL_STARTERS.sbar.steps[3];
+  for(let edition=1;;edition++){
+    const id=edition===1?HANDOFF_SKILL_ID:HANDOFF_SKILL_ID+'-'+edition,s=skills[id];
+    if(!s||(s.type==='communication'&&s.steps?.includes(critical)&&s.rubricKind!=='school'))return id;
+  }
+}
+
+function observationRank(record){
+  if(record.evidence==='self'||!(record.observerConfirmedAt||record.attested))return 0;
+  if(record.evidence==='peer')return 1;
+  return record.evidence==='supervised'?(record.setting==='clinical'?3:2):0;
+}
+
+function criticalObservations(skill,draft){
+  const observed=draft.evidence==='peer'||draft.evidence==='supervised';
+  return (skill.steps||[]).flatMap((step,index)=>{
+    if(!/^!\s/.test(step))return [];
+    const chosen=observed?draft.criticalRatings?.[index]:'unobserved';
+    let status=Object.hasOwn(SAFETY_STATES,chosen)?chosen:'unobserved';
+    if(status==='adequate'&&draft.assistance!=='independent')status=draft.assistance==='not_assessed'?'unobserved':'assisted';
+    return [{index,step,status}];
+  });
+}
+
+function safetySchedule(status,at){
+  // This is a practice reminder. A supervisor determines when actual patient care is appropriate.
+  return status==='unobserved'?at+DAY:at;
+}
+
+function pendingCriticalActions(now=Date.now()){
+  const result=[],order={coaching:0,assisted:1,unobserved:2};
+  for(const s of Object.values(campus().skills)){
+    const history=[...(s.logs||[])].sort((a,b)=>a.ts-b.ts);
+    if(!history.length)continue;
+    for(const [index,step] of (s.steps||[]).entries()){
+      if(!/^!\s/.test(step))continue;
+      let pending=null,adequateRank=0;
+      for(const log of history){
+        const inRubric=log.rubric?.steps?.includes(step);
+        if(log.rubric&&!inRubric)continue;
+        const row=log.safetySteps?.find(v=>v.step===step);
+        const rank=observationRank(log),status=rank&&row?row.status:'unobserved';
+        if(status==='adequate'){
+          if(!pending||rank>=pending.requiredRank){
+            adequateRank=Math.max(adequateRank,rank);pending=null;
+          }
+          continue;
+        }
+        if(status==='unobserved'&&pending){pending.requiredRank=Math.max(pending.requiredRank,rank);continue;}
+        if(status==='unobserved'&&adequateRank&&rank<=adequateRank)continue;
+        const requiredRank=status==='unobserved'?Math.max(1,rank):Math.max(2,rank);
+        if(pending&&rank<pending.requiredRank&&order[pending.status]<=order[status])continue;
+        const at=Number(log.ts)||now;
+        pending={skillId:s.id,title:s.title,stepIndex:index,step,status,sourceLogId:skillLogKey(log),
+          evidence:log.evidence||'self',setting:log.setting||'',observerRole:log.observerRole||'',
+          requiredRank:Math.max(requiredRank,pending?.requiredRank||0),
+          due:Math.min(safetySchedule(status,at),pending?.due??Infinity)};
+        adequateRank=0;
+      }
+      if(!pending&&!adequateRank){
+        pending={skillId:s.id,title:s.title,stepIndex:index,step,status:'unobserved',sourceLogId:null,
+          evidence:'',setting:'',observerRole:'',requiredRank:1,due:(s.rubricChangedAt||now)+DAY};
+      }
+      if(pending)result.push(pending);
+    }
+  }
+  return result.sort((a,b)=>a.due-b.due||order[a.status]-order[b.status]||a.skillId.localeCompare(b.skillId)||a.stepIndex-b.stepIndex);
+}
+
+function openSkillTarget(skillId,stepIndex){
+  const s=campus().skills[skillId],index=Number(stepIndex);
+  if(!s||!Number.isInteger(index)||!s.steps?.[index])return false;
+  selectedSkill=skillId;
+  const d=s.draft||(s.draft=newSkillDraft());d.practiceTarget=index;
+  persistWorkspace();go('skills');return true;
+}
+
+function writtenHandoffId(attempt){
+  return 'written/'+encodeURIComponent(JSON.stringify([attempt.qid,attempt.revision,attempt.ts]));
+}
+
+function writtenHandoffSource(a){
+  const j=a.clinicalJudgment;
+  if(a.skipped||a.mode==='mock'||!a.revision||!Number.isFinite(a.ts)||a.ts>Date.now()||
+    !j||j.qid!==a.qid||j.objective!=='acute.postprocedure_hypotension'||!Number.isFinite(j.lockedAt)||j.lockedAt>a.ts)return null;
+  const selectedMiss=Array.isArray(j.decisions)&&j.decisions.some(d=>d.id==='escalation'&&d.selected!=null&&d.correct===false);
+  const review=a.prediction?.mode==='written'&&a.prediction.text?.trim()&&typeof firstTextReview==='function'?firstTextReview(a):null;
+  const textMiss=review?.ratings?.escalation==='missed'&&review.at<=Date.now();
+  if(!selectedMiss&&!textMiss)return null;
+  const item=S.bank[a.qid],current=item&&typeof itemRevision==='function'&&itemRevision(item)===a.revision;
+  const snapshot=j.caseContext?.revision===a.revision?j.caseContext:current?item:null;
+  return {type:'written',qid:a.qid,revision:a.revision,ts:a.ts,title:String(snapshot?.title||snapshot?.topic||'필기에서 만난 환자').slice(0,180),
+    stem:String(snapshot?.stem||'').slice(0,6000),selectedMiss,textMiss:!!textMiss,reviewRole:textMiss?review.role:'',reviewedAt:textMiss?review.at:null};
+}
+
+function handoffObservationTarget(attemptId){
+  const attempts=Object.values(workspace().roundAttempts||{}).filter(r=>HANDOFF_CASES.includes(r.caseId)&&(!attemptId||r.attemptId===attemptId));
+  const skillId=handoffStationId(),station=campus().skills[skillId];
+  const records=Object.values(campus().skills).flatMap(s=>s.logs||[]);
+  if(!attemptId||attemptId.startsWith('written/')){
+    const sources=new Map();
+    for(const s of Object.values(campus().skills)){
+      const draft=s.draft;
+      if(draft?.handoffSource?.type==='written')sources.set(draft.handoffAttempt,draft.handoffSource);
+      for(const log of s.logs||[]){
+        const h=log.handoffObservation;
+        if(h?.source?.type==='written')sources.set(h.attemptId,h.source);
+      }
+    }
+    for(const a of typeof S==='undefined'?[]:S.attempts||[]){
+      if(!a.clinicalJudgment)continue;
+      const id=writtenHandoffId(a);if(attemptId&&id!==attemptId)continue;
+      const source=writtenHandoffSource(a);
+      if(source){
+        const saved=sources.get(id);
+        sources.set(id,{...source,stem:source.stem||saved?.stem||'',title:source.stem?source.title:saved?.title||source.title,
+          selectedMiss:source.selectedMiss||!!saved?.selectedMiss,textMiss:source.textMiss||!!saved?.textMiss,
+          reviewRole:source.reviewRole||saved?.reviewRole||'',reviewedAt:source.reviewedAt||saved?.reviewedAt||null});
+      }
+    }
+    for(const [id,source] of sources){
+      if((!attemptId||attemptId===id)&&id===writtenHandoffId(source)&&source.stem){
+        const parts=[source.selectedMiss?'초기 대응 선택에서 도움 요청을 놓쳤습니다.':'',
+          source.textMiss?(source.reviewRole==='instructor'?'지도자':'동료')+'가 첫 서면 응답에서 도움 요청이 빠졌다고 확인했습니다.':''];
+        attempts.push({attemptId:id,finishedAt:Math.max(source.ts,source.reviewedAt||0),writtenSource:source,communication:{correction:parts.filter(Boolean).join(' ')}});
+      }
+    }
+  }
+  attempts.sort((a,b)=>b.finishedAt-a.finishedAt);
+  const actionable=[];
+  for(const attempt of attempts){
+    const related=records.filter(l=>l.handoffObservation?.attemptId===attempt.attemptId&&l.ts>=attempt.finishedAt).sort((a,b)=>a.ts-b.ts);
+    const p=attempt.communication||{}, actual=p.mode==='peer'||p.mode==='supervisor';
+    let status=p.readbackAt&&actual&&['one','neither'].includes(p.rating)?'coaching':'unobserved';
+    const source=attempt.writtenSource||null;
+    let evidence=actual?p.mode==='supervisor'?'supervised':'peer':'self',setting='simulation',role='',lastId='',required=p.mode==='supervisor'||status==='coaching'||source?.reviewRole==='instructor'?2:1;
+    for(const log of related){
+      const rank=observationRank(log),h=log.handoffObservation;
+      if(!rank)continue;
+      if(h.status==='observed-independent'&&rank<required)continue;
+      if(h.status==='unobserved'&&(status==='coaching'||status==='assisted'||status==='observed-independent'))continue;
+      if((status==='coaching'||status==='assisted')&&rank<required&&h.status==='assisted')continue;
+      status=h.status;evidence=log.evidence;setting=log.setting;role=log.observerRole;lastId=log.id;
+      if(status==='coaching'||status==='assisted')required=Math.max(2,required,rank);
+    }
+    const stepIndex=station?station.steps.indexOf(SKILL_STARTERS.sbar.steps[3]):3;
+    actionable.push({skillId,stepIndex,title:source?'필기에서 놓친 도움 요청 · 같은 환자 전화 보고':'시술 후 악화 환자 전화 보고',step:SKILL_STARTERS.sbar.steps[3],
+      sourceType:source?'written':'round',source,sourceCaseTitle:source?.title||'',sourceContext:source?.stem||'',
+      sourceAttemptId:attempt.attemptId,sourceLogId:lastId,feedback:p.correction||'',mode:p.mode||'',evidence,setting,observerRole:role,
+      requiredRank:required,status,due:attempt.finishedAt||0});
+  }
+  return actionable.find(t=>t.status==='coaching'||t.status==='assisted')||actionable.find(t=>t.status==='unobserved')||actionable[0]||null;
+}
+
+function openHandoffObservation(attemptId){
+  const target=handoffObservationTarget(attemptId);if(!target)return false;
+  if(!campus().skills[target.skillId]){
+    const {url,...spec}=SKILL_STARTERS.sbar;
+    campus().skills[target.skillId]={...spec,id:target.skillId,steps:[...spec.steps],sourceUrl:url,logs:[],createdAt:Date.now(),updatedAt:Date.now()};
+  }
+  const s=campus().skills[target.skillId];let d=s.draft||(s.draft=newSkillDraft());
+  selectedSkill=s.id;
+  if(d.handoffAttempt!==target.sourceAttemptId){
+    d=s.draft=newSkillDraft();d.handoffAttempt=target.sourceAttemptId;
+    d.evidence=target.requiredRank>=2?'supervised':'peer';
+  }
+  d.handoffSource=target.source;d.practiceTarget=target.stepIndex;s.updatedAt=Date.now();persistWorkspace();go('skills');return true;
+}
+
+function handoffObservationResult(s,draft,safety){
+  if(!draft.handoffAttempt)return {};
+  const target=handoffObservationTarget(draft.handoffAttempt);
+  if(!target||s.id!==target.skillId)return {error:'원래 인계 기록을 다시 선택하세요.'};
+  const observed=draft.evidence!=='self'&&draft.attested;
+  const parts=['Risk','Request'].map(key=>{
+    const selected=draft['heard'+key];
+    return {status:observed&&Object.hasOwn(HEARD_STATES,selected)?selected:'unobserved',text:observed?String(draft['repeat'+key]||'').trim():''};
+  });
+  if(parts.some(p=>p.status==='heard'&&!p.text))return {error:'실제로 전달된 위험과 요청은 청자가 들은 표현으로 적으세요.'};
+  const focus=safety.find(row=>row.index===target.stepIndex);
+  let status='unobserved';
+  if(observed){
+    if(parts.some(p=>p.status==='missed')||focus?.status==='coaching')status='coaching';
+    else if(parts.every(p=>p.status==='heard')&&focus?.status==='adequate')status='observed-independent';
+    else if(focus?.status==='assisted')status='assisted';
+  }
+  return {handoffObservation:{attemptId:target.sourceAttemptId,source:target.source,receiverRisk:parts[0],receiverRequest:parts[1],status}};
+}
+
+function clinicalHandoffView(draft,observed){
+  const target=handoffObservationTarget(draft.handoffAttempt);if(!draft.handoffAttempt||!target)return '';
+  const prompt=target.sourceType==='written'?`<h4>${esc(target.sourceCaseTitle)}</h4><p style="white-space:pre-wrap">${esc(target.sourceContext)}</p>
+    <p>이 환자의 담당자에게 전화하듯 보고하세요. 청자는 보고를 들은 뒤 위험 신호와 요청한 행동·시점을 자기 말로 되말하고, 실제로 들은 내용만 기록하세요.</p>`:'<p>같은 유형의 별도 상황에서 보고하세요. 청자가 들은 위험과 행동·시점을 확인합니다.</p>';
+  return `<div class="round-observation"><h3>${esc(target.title)}</h3><p>다시 연습할 이유 · ${esc(target.feedback||'기록된 교정점 없음')}</p>${prompt}
+    ${observed?['Risk','Request'].map((k,i)=>`<label class="field">${i?'요청과 시점':'위험 신호'}<select data-practice="heard${k}">${practiceOptions(HEARD_STATES,draft['heard'+k]||'unobserved')}</select></label><label class="field">청자가 되말한 ${i?'요청과 시점':'위험 신호'}<textarea data-practice="repeat${k}" rows="2" maxlength="500">${esc(draft['repeat'+k]||'')}</textarea></label>`).join(''):''}</div>`;
+}
+
+function skillRecheck(s,draft,checked,safety){
   if(!draft.targetLog)return {};
   const original=(s.logs||[]).find(l=>l.id===draft.targetLog&&l.correction);
   if(!original)return {error:'원래의 관찰·교정 기록을 다시 선택하세요.'};
@@ -209,6 +413,14 @@ function skillRecheck(s,draft,checked){
   const target=same?original.correction.index:draft.mappedStep===''||draft.mappedStep==null?-1:Number(draft.mappedStep);
   if(draft.outcome!=='not_assessed'&&(!Number.isInteger(target)||!s.steps[target]))return {error:'변경된 판본에서 같은 행동에 해당하는 단계를 선택하세요.'};
   if(draft.outcome==='corrected'&&!checked.has(target))return {error:'교정 완료를 확인한 단계를 체크하세요.'};
+  if(draft.outcome==='corrected'){
+    const safetyTarget=safety.find(v=>v.index===target);
+    const priorStatus=original.safetySteps?.find(row=>row.index===original.correction.index)?.status;
+    const neededCoaching=['coaching','assisted'].includes(priorStatus)||original.assistance!=='independent';
+    const required=Math.max(observationRank(original),neededCoaching?2:1);
+    if(draft.assistance!=='independent'||observationRank(draft)<required||(safetyTarget&&safetyTarget.status!=='adequate'))
+      return {error:'교정 수행 확인은 이전에 필요했던 관찰 수준에서 도움 없이 직접 수행한 경우에 기록하세요.'};
+  }
   return {reassessment:{originalId:original.id,originalStep:original.correction.step,targetIndex:target,targetStep:s.steps[target]||'',
     outcome:draft.outcome,revisionChanged:!same}};
 }
@@ -283,35 +495,51 @@ function skillPracticeResult(s,draft){
   if (rubricProblem) return {error:rubricProblem};
   const evidence=Object.hasOwn(SKILL_EVIDENCE,draft.evidence)?draft.evidence:'self';
   const observed=evidence!=='self';
-  const setting=evidence==='supervised'&&draft.setting==='clinical'?'clinical':'simulation';
+  const writtenCase=draft.handoffAttempt?.startsWith('written/');
+  const setting=!writtenCase&&evidence==='supervised'&&draft.setting==='clinical'?'clinical':'simulation';
+  draft={...draft,setting};
   if(observed&&(!draft.attested||!Object.hasOwn(SKILL_OBSERVERS,draft.observerRole)||
     (evidence==='peer')!==(draft.observerRole==='peer')))return {error:'실제 관찰자의 역할을 선택하고 관찰자가 이 기록을 직접 확인해 주세요.'};
   const notes=String(draft.notes||'').trim(), remediation=String(draft.remediation||'').trim();
   if (observed&&(!notes||!Object.hasOwn(SKILL_ASSISTANCE,draft.assistance))) return {error:'관찰한 행동 한 가지와 실제 도움 수준을 기록하세요.'};
-  const checked=new Set((draft.checks||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<s.steps.length));
+  const checked=new Set((draft.checks||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<s.steps.length&&(!observed||!/^!\s/.test(s.steps[i]))));
+  const safety=criticalObservations(s,draft);
+  const handoff=handoffObservationResult(s,draft,safety);
+  if(handoff.error)return handoff;
+  if(observed&&handoff.handoffObservation){
+    const communication=safety.find(row=>row.step===SKILL_STARTERS.sbar.steps[3]);
+    if(communication){
+      const status=handoff.handoffObservation.status;
+      communication.status=status==='observed-independent'?'adequate':status;
+    }
+  }
+  if(observed)for(const step of safety)if(step.status==='adequate'||step.status==='assisted')checked.add(step.index);
   if (!checked.size&&!notes&&!remediation) return {error:'실제로 연습한 단계를 체크하거나 관찰한 내용을 기록하세요.'};
   const missed=s.steps.filter((_,i)=>!checked.has(i));
-  const critical=missed.filter(step=>/^!\s/.test(step));
-  if (observed&&(critical.length||draft.assistance!=='independent')&&!remediation) return {error:'다음 관찰에서 다시 확인할 행동을 한 가지 적으세요.'};
+  const critical=safety.filter(row=>row.status!=='adequate').map(row=>row.step);
+  const needsCoaching=safety.filter(row=>row.status==='coaching'||row.status==='assisted');
+  if (observed&&(needsCoaching.length||['verbal','hands','stopped'].includes(draft.assistance))&&!remediation) return {error:'다음 관찰에서 다시 확인할 행동을 한 가지 적으세요.'};
   let correction=null;
   if(observed&&remediation){
     const i=Number(draft.focusStep);
     if(draft.focusStep==null||draft.focusStep===''||!Number.isInteger(i)||!s.steps[i])return {error:'관찰자가 교정을 요청한 단계를 선택하세요.'};
+    if(needsCoaching.length&&!needsCoaching.some(row=>row.index===i))return {error:'교정이 필요한 안전 필수 단계 중 하나를 우선 선택하세요.'};
     correction={index:i,step:s.steps[i],action:remediation};
   }
-  const review=skillRecheck(s,draft,checked);
+  const review=skillRecheck(s,draft,checked,safety);
   if(review.error)return review;
   const ts=Date.now(),days=[1,3,7,14].includes(Number(draft.interval))?Number(draft.interval):1;
   return {log:{id:uid('PRACTICE'),ts,checked:checked.size,total:s.steps.length,missed,notes,evidence,setting,
     observerRole:observed?draft.observerRole:'',observerConfirmedAt:observed?ts:null,
-    assistance:observed?draft.assistance:'',critical,remediation,correction,reassessment:review.reassessment||null,
+    assistance:observed?draft.assistance:'',critical,safetySteps:safety,remediation,correction,reassessment:review.reassessment||null,
+    handoffObservation:handoff.handoffObservation||null,
     followupOf:review.reassessment?.originalId||null,rubric:skillRubricSnapshot(s),nextDue:ts+days*DAY}};
 }
 
 function skillLogView(log){
   const mode=log.id?SKILL_EVIDENCE[log.evidence]:({self:'혼자 연습',peer:'동료와 연습',supervised:'지도하 연습'})[log.evidence];
   const help=SKILL_ASSISTANCE[log.assistance];
-  return `<div class="skill-log"><span class="bdg">${esc(dstr(log.ts))}</span> <strong>${esc(log.checked)}/${esc(log.total)}단계</strong>
+  return `<div class="skill-log"><span class="bdg">${esc(dstr(log.ts))}</span> <strong>${log.evidence==='self'?'자기 점검':'수행으로 기록'} ${esc(log.checked)}/${esc(log.total)}단계</strong>
     <span class="mut"> · ${esc(mode||'방식 미기록')}${log.setting?' · '+(log.setting==='clinical'?'임상 실습':'모의 실습'):''}${help?' · '+esc(help):''}</span>
     ${log.followupOf?'<p>이전 연습에 이어 재평가</p>':''}
     ${log.observerConfirmedAt?`<p>관찰자 현장 확인 · ${esc(SKILL_OBSERVERS[log.observerRole])}</p>`:log.evidence!=='self'?'<p>관찰자의 현장 확인 기록 없음</p>':''}
@@ -320,6 +548,8 @@ function skillLogView(log){
     ${log.evidence!=='self'&&!help?'<p>과거 기록 · 관찰 수준 미기록</p>':''}
     <p>${esc(log.notes||'피드백 기록 없음')}</p>
     ${log.missed?.length?`<p>체크하지 않은 단계 · ${log.missed.map(esc).join(' / ')}</p>`:''}
+    ${safetyLogView(log)}
+    ${log.handoffObservation?`<p>${log.handoffObservation.source?.type==='written'?'필기 증례 · '+esc(log.handoffObservation.source.title):'시술 후 전화 보고'} 재관찰 · 들은 위험 ${esc(HEARD_STATES[log.handoffObservation.receiverRisk.status])} ${esc(log.handoffObservation.receiverRisk.text)} · 들은 요청 ${esc(HEARD_STATES[log.handoffObservation.receiverRequest.status])} ${esc(log.handoffObservation.receiverRequest.text)}</p>`:''}
     ${log.remediation?`<p>다음에 확인할 행동 · ${esc(log.remediation)}</p>`:''}
     ${log.rubric?`<details><summary>사용한 평가표</summary><p>${esc([log.rubric.kind==='school'?'학교 배부 원본 · 사용자 대조':'연습용',log.rubric.school,log.rubric.source,log.rubric.version].filter(Boolean).join(' · '))}</p><ol>${log.rubric.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol></details>`:''}</div>`;
 }
@@ -333,32 +563,70 @@ function practiceOptions(labels,current,empty){
   return lead+Object.entries(labels).map(([v,label])=>`<option value="${esc(v)}" ${v===String(current)?'selected':''}>${esc(label)}</option>`).join('');
 }
 
+function skillChecklist(s,draft,observed){
+  return `<div class="checklist">${(s.steps||[]).map((step,i)=>{
+    const critical=/^!\s/.test(step),title=(critical?'안전 필수 · ':'')+step.replace(/^!\s+/,'');
+    const focus=Number.isInteger(draft.practiceTarget)&&draft.practiceTarget===i?' · 이번 관찰 대상':'';
+    if(critical&&observed)return `<label class="field"><span>${i+1}. ${esc(title+focus)}</span><select data-critical-step="${i}">${practiceOptions(SAFETY_STATES,draft.criticalRatings?.[i]||'unobserved')}</select></label>`;
+    return `<label><input type="checkbox" data-skill-step="${i}" ${draft.checks.includes(i)?'checked':''}><span>${i+1}. ${esc(title+focus)}</span></label>`;
+  }).join('')}</div>`;
+}
+
+function safetyLogView(log){
+  if(!log.safetySteps?.length)return log.rubric?.steps?.some(t=>/^!\s/.test(t))?'<p>이전 기록 · 안전 단계별 직접 관찰 결과 미상</p>':'';
+  const independent=log.safetySteps.filter(r=>r.status==='adequate').length;
+  return `<p>${log.evidence==='self'?'자기연습 · 안전 단계 직접 관찰 없음':`도움 없이 적절함이 관찰된 안전 단계 ${independent}/${log.safetySteps.length}`}</p><ul>${log.safetySteps.map(row=>`<li>${esc(row.step.replace(/^!\s+/,''))} · ${esc(SAFETY_STATES[row.status]||SAFETY_STATES.unobserved)}</li>`).join('')}</ul>`;
+}
+
+function skillPriorityView(s,pending){
+  const targets=pending.filter(t=>t.skillId===s.id);
+  if(!targets.length)return '';
+  return `<details open><summary>다음 직접 관찰 · ${targets.length}단계</summary><ul>${targets.map(t=>`<li><button class="btn sm" data-campus="focus-skill" data-id="${esc(s.id)}" data-index="${t.stepIndex}">${esc(t.step.replace(/^!\s+/,''))}</button> · ${esc(SAFETY_STATES[t.status])} · ${esc(dstr(t.due))}</li>`).join('')}</ul></details>`;
+}
+
+function saveSafetyRating(target){
+  const s=campus().skills[selectedSkill],index=Number(target.dataset.criticalStep);
+  if(!s||!Number.isInteger(index)||!/^!\s/.test(s.steps[index]||'')||!Object.hasOwn(SAFETY_STATES,target.value))return;
+  const draft=s.draft||(s.draft=newSkillDraft());
+  (draft.criticalRatings||(draft.criticalRatings={}))[index]=target.value;draft.attested=false;
+  const attestation=$('#skill-attestation');if(attestation)attestation.checked=false;
+  s.updatedAt=Date.now();persistWorkspace();
+}
+
 function vSkills(){
   const skills=Object.values(campus().skills),now=Date.now();
-  const due=skills.filter(s=>!s.due||s.due<=now),logs=skills.flatMap(s=>s.logs||[]);
+  const pending=pendingCriticalActions(now);
+  const effectiveDue=s=>Math.min(s.due||0,...pending.filter(t=>t.skillId===s.id).map(t=>t.due));
+  const due=skills.filter(s=>effectiveDue(s)<=now),logs=skills.flatMap(s=>s.logs||[]);
   let h=pageHeading('실기 연습','',`<div class="actions"><button class="btn" data-campus="import-rubric">로컬 평가표 가져오기</button><button class="btn" data-campus="new-skill">${icon('plus')}연습 항목</button></div>`);
   h+=`<div class="metrics skills-metrics">${metric(skills.length,'연습 항목','체크리스트','layers')}${metric(due.length,'복습할 항목','미연습 또는 복습일 도달','repeat')}${metric(logs.length,'연습 기록','자기 기록 및 관찰 피드백','check')}</div>`;
+  const handoffTarget=handoffObservationTarget();
+  if(handoffTarget&&handoffTarget.status!=='observed-independent'&&campus().skills[selectedSkill]?.draft?.handoffAttempt!==handoffTarget.sourceAttemptId){
+    h+=`<section class="card"><h2>다시 관찰할 전화 보고</h2><p>${esc(handoffTarget.feedback||'시술 후 위험과 도움 요청이 청자에게 전달되는지 확인하세요.')}</p><button class="btn" data-campus="focus-handoff" data-id="${esc(handoffTarget.sourceAttemptId)}">해당 인계 다시 관찰</button></section>`;
+  }
   if (!skills.length) return h+skillStartersView()+`<div class="card"><button class="btn" data-campus="new-skill">학교 평가표로 새 항목 만들기</button></div>`;
   if (!campus().skills[selectedSkill]) selectedSkill=skills[0].id;
   const s=campus().skills[selectedSkill],draft={...newSkillDraft(),...s.draft},observed=draft.evidence!=='self';
   const history=[...(s.logs||[])].reverse(),rubricProblem=skillRubricError(s),edition=skillRubricSnapshot(s);
   const oldEditions=(s.editions||[]).filter(r=>rubricKey(r)!==rubricKey(edition));
   const rubricUrl=s.sourceUrl&&/^https?:\/\//i.test(s.sourceUrl)?` · <a href="${esc(s.sourceUrl)}" target="_blank" rel="noopener noreferrer">교육자료 열기</a>`:'';
-  h+=`<div class="skills-layout"><div class="skill-menu">${skills.map(item=>`<button class="skill-item ${item.id===s.id?'active':''}" data-campus="select-skill" data-id="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(CLINICAL_DOMAINS[item.type])} · ${!item.due||item.due<=now?'복습할 때':'다음 '+dstr(item.due)}</small></button>`).join('')}</div>
+  h+=`<div class="skills-layout"><div class="skill-menu">${skills.map(item=>`<button class="skill-item ${item.id===s.id?'active':''}" data-campus="select-skill" data-id="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(CLINICAL_DOMAINS[item.type])} · ${effectiveDue(item)<=now?'복습할 때':'다음 '+dstr(effectiveDue(item))}</small></button>`).join('')}</div>
   <section><div class="card"><div class="section-title"><div><div class="eyebrow">${esc(CLINICAL_DOMAINS[s.type])}</div><h2>${esc(s.title)}</h2></div><button class="btn ghost sm" data-campus="edit-skill">체크리스트 편집</button></div>
-  ${s.scenario?`<p>${esc(s.scenario)}</p>`:''}${s.partner?`<details><summary>상대역 지침</summary><p>${esc(s.partner)}</p></details>`:''}
+  ${s.scenario&&!draft.handoffAttempt?`<p>${esc(s.scenario)}</p>`:''}${s.partner&&!draft.handoffAttempt?`<details><summary>상대역 지침</summary><p>${esc(s.partner)}</p></details>`:''}
   <p class="mut">${edition.kind==='school'?'학교·기관 배부 원본 · 사용자 대조':'연습용 평가표'} · ${esc([s.school,s.source||'출처 미등록',s.rubricVersion].filter(Boolean).join(' · '))}${rubricUrl}</p>
   ${oldEditions.length?`<details><summary>이전 판본 ${oldEditions.length}개</summary>${oldEditions.map(r=>`<details><summary>${esc([r.version,r.school,r.source].filter(Boolean).join(' · '))}</summary><ol>${r.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details>`).join('')}</details>`:''}
   ${rubricProblem?`<p class="banner info">${esc(rubricProblem)}</p>`:''}
-  <div class="checklist">${(s.steps||[]).map((step,i)=>`<label><input type="checkbox" data-skill-step="${i}" ${draft.checks.includes(i)?'checked':''}><span><small>${String(i+1).padStart(2,'0')}</small>${/^!\s/.test(step)?'<strong>안전 필수 · </strong>':''}${esc(step.replace(/^!\s+/,''))}</span></label>`).join('')}</div>
   <label class="field">연습 방식<select id="skill-evidence" data-practice="evidence">${practiceOptions(SKILL_EVIDENCE,draft.evidence)}</select></label>
-  ${draft.evidence==='supervised'?`<label class="field">관찰 환경<select data-practice="setting">${practiceOptions({simulation:'모의 실습',clinical:'지도하 임상 실습'},draft.setting)}</select></label>`:''}
+  ${draft.handoffAttempt?clinicalHandoffView(draft,observed):''}
+  ${skillPriorityView(s,pending)}${skillChecklist(s,draft,observed)}
+  ${draft.handoffAttempt?.startsWith('written/')?'<p>관찰 환경 · 같은 필기 증례를 재현한 모의 전화 보고</p>':draft.evidence==='supervised'?`<label class="field">관찰 환경<select data-practice="setting">${practiceOptions({simulation:'모의 실습',clinical:'지도하 임상 실습'},draft.setting)}</select></label>`:''}
   ${observed?`<label class="field">관찰자가 수행 중 제공한 도움<select id="skill-assistance" data-practice="assistance">${practiceOptions(SKILL_ASSISTANCE,draft.assistance,true)}</select></label>`:''}
   ${observed?`<label class="field">관찰자 역할<select data-practice="observerRole">${practiceOptions(Object.fromEntries(Object.entries(SKILL_OBSERVERS).filter(([key])=>(key==='peer')===(draft.evidence==='peer'))),draft.observerRole,true)}</select></label>`:''}
   <label class="field">${observed?'직접 본 행동과 관찰 피드백':'자기연습 메모'}<textarea id="skill-observation" data-practice="notes" rows="2" maxlength="3000" placeholder="실명이나 환자 식별정보 없이 행동만 기록">${esc(draft.notes)}</textarea></label>
   <label class="field">다음에 다시 확인할 행동<textarea id="skill-remediation" data-practice="remediation" rows="2" maxlength="1000">${esc(draft.remediation)}</textarea></label>
   ${observed?skillCorrectionsView(s,draft):''}
   <label class="field">다음 복습<select id="skill-interval" data-practice="interval">${practiceOptions({1:'내일',3:'3일 뒤',7:'7일 뒤',14:'14일 뒤'},draft.interval)}</select></label>
+  ${(s.steps||[]).some(t=>/^!\s/.test(t))?'<p class="hint mut">안전 단계에 교정이나 도움이 필요하면 다음 직접 관찰 과제에 바로 넣습니다. 미관찰 단계는 다음 날까지 확인하도록 표시합니다.</p>':''}
   ${observed?`<label><input id="skill-attestation" type="checkbox" data-practice="attested" ${draft.attested?'checked':''}> 관찰자 확인 · 제가 이 수행을 직접 보았고, 기록된 도움 수준·피드백·재평가 결과를 확인했습니다.</label>`:''}
   <p class="hint mut">현장에서 이 기기에 남기는 확인입니다. 독립 수행 승인은 학교·기관의 평가 절차를 따르세요.</p>
   <div class="actions"><button class="btn pri" data-campus="record-skill" ${rubricProblem?'disabled':''}>수행 기록 저장</button><button class="btn" data-campus="skill-prompt">${icon('copy')}역할극 요청문 복사</button></div></div>
@@ -372,7 +640,7 @@ function savePracticeDraft(target){
   const draft=s.draft||(s.draft=newSkillDraft());
   if(key!=='interval'&&key!=='attested'&&draft.attested){draft.attested=false;const input=$('#skill-attestation');if(input)input.checked=false;}
   if(key==='targetLog'){draft.mappedStep='';draft.outcome='';}
-  if(key==='evidence'){draft.observerRole='';draft.targetLog='';draft.mappedStep='';draft.outcome='';}
+  if(key==='evidence'){draft.observerRole='';draft.targetLog='';draft.mappedStep='';draft.outcome='';draft.criticalRatings={};draft.heardRisk='unobserved';draft.heardRequest='unobserved';draft.repeatRisk='';draft.repeatRequest='';}
   draft[key]=target.type==='checkbox'?target.checked:target.value;
   s.updatedAt=Date.now(); persistWorkspace();
 }
@@ -382,6 +650,8 @@ async function recordSkillPractice(){
   const result=skillPracticeResult(s,{...newSkillDraft(),...s.draft});
   if (result.error) {toast(result.error,'err'); return;}
   (s.logs||(s.logs=[])).push(result.log);
+  const targets=pendingCriticalActions(result.log.ts).filter(row=>row.skillId===s.id);
+  if(targets.length)result.log.nextDue=Math.min(result.log.nextDue,...targets.map(t=>t.due));
   s.due=result.log.nextDue;s.draft=newSkillDraft();s.updatedAt=result.log.ts;
   render();
   await persistWorkspace();
@@ -426,7 +696,7 @@ document.addEventListener('input',e=>{
   if(t.dataset.exam||t.dataset.material||t.id==='school-count')saveExamInput(t);
   if(t.dataset.practice&&t.tagName==='TEXTAREA')savePracticeDraft(t);
 });
-document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.practice){savePracticeDraft(t);if(['evidence','targetLog'].includes(t.dataset.practice))render();return;}if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.attested=false;const attestation=$('#skill-attestation');if(attestation)attestation.checked=false;s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
+document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.criticalStep!=null){saveSafetyRating(t);return;}if(t.dataset.practice){savePracticeDraft(t);if(['evidence','targetLog'].includes(t.dataset.practice))render();return;}if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.attested=false;const attestation=$('#skill-attestation');if(attestation)attestation.checked=false;s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
 document.addEventListener('click',async e=>{const btn=e.target.closest('[data-campus]');if(!btn)return;const b=activeBlock(),ex=activeExam(),id=btn.dataset.id;switch(btn.dataset.campus){
  case'new-block':newBlock();break;
  case'select-block':selectedBlock=id;selectedExam='';render();break;
@@ -456,6 +726,8 @@ document.addEventListener('click',async e=>{const btn=e.target.closest('[data-ca
  case'select-skill':selectedSkill=id;render();break;
  case'edit-skill':openRubricDialog(campus().skills[selectedSkill]);break;
  case'skill-starter':addSkillStarter(id);break;
+ case'focus-skill':openSkillTarget(id,Number(btn.dataset.index));break;
+ case'focus-handoff':openHandoffObservation(id);break;
  case'record-skill':await recordSkillPractice();break;
  case'skill-prompt':{const s=campus().skills[selectedSkill];if(s.rubricKind==='school'){await copy(`모의 ${CLINICAL_DOMAINS[s.type]||'실기'} 역할극을 진행하세요. 학습자가 말하는 목표를 듣고 관찰 가능한 행동을 연습시켜 주세요.`);break;}await copy(`의과대학 실기 연습: ${s.title}\n유형: ${CLINICAL_DOMAINS[s.type]}\n평가표 출처: ${s.source||'사용자 확인 필요'}\n체크리스트:\n${s.steps.map((v,i)=>`${i+1}. ${v}`).join('\n')}\n\nCPX라면 표준화 환자 역할로 시작하고 내가 묻는 정보만 단계적으로 답해 주세요. 술기라면 각 단계의 목적·안전 확인·누락을 구두로 점검해 주세요. 실제 손동작을 관찰하지 않았으므로 수행 숙련도를 인증하지 마세요. 평가표 밖의 상세 술기나 의학적 주장은 공식 자료로 확인하고 불확실성을 표시하세요. 내가 시작하기 전 정답과 체크리스트를 미리 설명하지 마세요.`);break;}
 }});

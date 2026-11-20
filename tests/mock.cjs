@@ -23,6 +23,19 @@ run(`save=async()=>{};persistWorkspace=()=>{};render=()=>{};
   S.bank.qa.needs_review=true;S.flags.flagged={reason:'withdrawn'};
   markAnswerExposure('seen',Date.now()-1000);`);
 assert.equal(run('mockPool().length'),4);
+// Only safe broad labels from the eligible pool may appear before the block starts.
+run(`Object.assign(S.bank.a,{subject:'IM',system:'cardiology',question_type:'next best step'});
+  Object.assign(S.bank.b,{system:'순환기',question_type:'다음 단계'});
+  Object.assign(S.bank.c,{system:'cardio',question_type:'unseen diagnosis from free text',topic:'diagnostic secret'});
+  Object.assign(S.bank.d,{system:'rare disorder secret',question_type:'mechanism',subject:'specific diagnosis secret'});
+  for(const id of ['seen','held','school','qa','flagged'])S.bank[id].question_type='law';`);
+const preview=run('vMock()');
+assert.match(preview,/<details><summary>출제 가능한 문항의 분포<\/summary>/);
+assert.match(preview,/내과 3문항/);assert.match(preview,/순환기 3문항/);
+assert.match(preview,/소표본·미분류 1문항/);assert.match(preview,/다음 단계 2문항/);
+assert.match(preview,/기전 1문항/);assert.doesNotMatch(preview,/법규|secret|unseen diagnosis|DEFERRED RATIONALE/);
+// Restore the original two-system fixture for the interleaving assertions.
+run("for(const [i,id] of ['a','b','c','d'].entries())S.bank[id]=fixture(id,i%2?'신장':'순환기')");
 click('start','5');
 run('var block=mockWorkspace()[mockSelected], first=block.questions[0], second=block.questions[1]');
 assert.equal(run('block.questions.length'),4);
@@ -32,6 +45,7 @@ assert.equal(run('first.system!==second.system'),true);
 click('choose','B');
 assert.equal(run('S.attempts.length'),0);
 assert.doesNotMatch(run('vMock()'),/DEFERRED RATIONALE|출제 당시 정답/);
+assert.doesNotMatch(run('vMock()'),/출제 가능한 문항의 분포/);
 click('next');click('choose','A');click('previous');click('clear');click('choose','A');
 assert.equal(run('Object.keys(block.seen).length'),2);
 run("mockSelected='';");

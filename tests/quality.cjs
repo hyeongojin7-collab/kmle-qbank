@@ -75,7 +75,7 @@ const json = expr => JSON.parse(run('JSON.stringify('+expr+')'));
   assert.equal(run("shippedBank.items.every(it=>isStudyEligible(S.bank[it.id]))"),true);
   assert.equal(run("shippedErrata.items.every(c=>!S.bank[c.id])"),true);
   assert.equal(run("applyErrata(shippedErrata)"),0);
-  assert.deepEqual(context.shippedErrata.items.map(c=>[c.id,c.before_revision]),[
+  assert.deepEqual(context.shippedErrata.items.filter(c=>c.id.startsWith('GEN-CV9-20261107-09-')).map(c=>[c.id,c.before_revision]),[
     ['GEN-CV9-20261107-09-02','q-tk6enzy8c8'],['GEN-CV9-20261107-09-08','q-2aqtoy4ivx2']
   ]);
   for(const c of context.shippedErrata.items){

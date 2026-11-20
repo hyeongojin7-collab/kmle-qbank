@@ -208,6 +208,18 @@ mergeBackup=function(b){
       const starts=w.transferStarts||(w.transferStarts={}),local=starts[id];
       if(!Number.isFinite(local?.openedAt)||other.openedAt<local.openedAt)starts[id]=other;
     }
+    for(const [id,other] of Object.entries(incoming.visualReadings||{})){
+      if(!/^[a-z0-9-]+$/i.test(id)||!other||typeof other!=='object')continue;
+      const records=w.visualReadings||(w.visualReadings={}),local=records[id]||{};
+      const frozen=[local,other].filter(v=>Number.isFinite(v.revealedAt)).sort((a,b)=>a.revealedAt-b.revealedAt)[0];
+      const record={...(frozen||((other.updatedAt||0)>(local.updatedAt||0)?other:local))};
+      const assistedAt=[local.assistedAt,other.assistedAt].filter(Number.isFinite).sort((a,b)=>a-b)[0];
+      if(assistedAt!==undefined){
+        record.assistedAt=assistedAt;
+        if(frozen&&assistedAt<=frozen.revealedAt){record.descriptionUsed=true;record.viewMode='observation-text';}
+      }
+      records[id]=record;
+    }
     if(!session||session.done||!isCurrentSession(session)){
       const local=resumableSession(w.resume),other=resumableSession(incoming.resume);
       session=local&&!local.done?local:other&&!other.done?other:local||other;

@@ -75,6 +75,16 @@ run(`render=()=>{};save=async()=>{};persistWorkspace=async()=>{};roundRecords=()
     mergeBackup({meta:{workspace:{transferStarts:{same:{openedAt:80}}}}});
     mergeBackup({meta:{workspace:{transferStarts:{same:{openedAt:120}}}}});`);
   assert.equal(run('workspace().transferStarts.same.openedAt'),80);
+  run(`workspace().visualReadings={ecg:{draft:'initial',updatedAt:1}};
+    const restoreVisual=r=>mergeBackup({meta:{workspace:{visualReadings:{ecg:r}}}});
+    restoreVisual({draft:'later',updatedAt:3});
+  `);
+  assert.equal(run('workspace().visualReadings.ecg.draft'),'later');
+  run(`restoreVisual({revealedAt:12,firstReading:'locked later'});
+    restoreVisual({revealedAt:10,firstReading:'earliest'});
+    restoreVisual({assistedAt:7,updatedAt:30,draft:'future draft'});`);
+  assert.equal(run('workspace().visualReadings.ecg.firstReading'),'earliest');
+  assert.equal(run('workspace().visualReadings.ecg.viewMode'),'observation-text');
   run(`session=null;workspace().resume=null;
     const incomingResume={ids:['one'],i:0,ans:{},done:false,reasoning:'imported draft'};
     mergeBackup({meta:{workspace:{resume:incomingResume}}});`);

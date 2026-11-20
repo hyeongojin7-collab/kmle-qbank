@@ -32,6 +32,24 @@ async function downloadPack(){const b=activeBlock(),e=activeExam();if(schoolBusy
 const CLINICAL_DOMAINS={cpx:'CPX · 환자 진료',osce:'OSCE · 술기',communication:'환자 설명 · 인계'};
 function skillTemplate(type){if(type==='cpx')return ['도입: 소개·환자 확인·면담 목적 설명','응급성 및 주요 위험 신호 확인','가설을 구분하는 병력청취','적응증에 맞는 진찰 선택·설명','핵심 소견 요약과 감별 근거 제시','검사·치료 계획과 불확실성 설명','환자의 걱정 확인·마무리'];if(type==='communication')return ['핵심 상황과 판단을 먼저 전달','근거와 우선순위를 구분해 설명','불확실성과 다음 행동을 명시','상대방의 이해와 질문 확인'];return ['학교 평가표에서 준비·안전 항목 입력','학교 평가표에서 술기 수행 단계를 입력','학교 평가표에서 마무리·정리 항목 입력'];}
 const SKILL_STARTERS = {
+  "venous-blood": {
+    "title": "모형 팔 정맥혈 채혈",
+    "type": "osce",
+    "source": "WHO guidelines on drawing blood (2010), chapter 2 · Genesis 실습용 재구성",
+    "rubricVersion": "Genesis 1 · WHO 2010",
+    "url": "https://www.who.int/publications/i/item/9789241599221",
+    "scenario": "실습실의 모형 팔, 모의 처방·라벨과 기관 지정 채혈기구로 연습합니다. 지도자가 대상자 확인부터 검체 인계까지 관찰합니다.",
+    "steps": [
+      "! 모의 환자에게 신원을 말하게 하고, 손목표와 처방·검체 라벨의 식별정보를 대조한다.",
+      "목적을 설명하고 동의를 확인한다. 필요한 채혈관·안전기구·거즈와 손이 닿는 폐기통을 준비한다.",
+      "손위생을 실시하고 대상자의 팔을 지지한다. 채혈할 정맥을 평가해 지혈대를 적용하고 장갑을 착용한다.",
+      "! 피부를 소독해 자연 건조시킨 뒤, 소독한 부위를 다시 만지지 않는다.",
+      "모형에서 정맥을 고정하고 기구별 교육 절차에 따라 채혈한다. 처방에 맞는 채혈관과 기관의 채혈 순서를 확인한다.",
+      "바늘을 빼기 전에 지혈대를 풀고 바늘을 제거한 직후 마른 거즈로 압박한다.",
+      "! 안전장치를 사용하고 재뚜껑 씌우기 없이 즉시 손상성 폐기물 용기에 버린다.",
+      "! 모의 환자 곁에서 처방과 검체 라벨을 다시 대조한다. 지혈·상태를 확인하고 장갑 제거·손위생 후 검체를 인계한다."
+    ]
+  },
   "chest-pain": {
     "title": "흉통 환자의 첫 면담",
     "type": "cpx",
@@ -78,7 +96,135 @@ const SKILL_STARTERS = {
 const SKILL_EVIDENCE={self:"혼자 연습",peer:"동료가 직접 관찰",supervised:"지도자가 직접 관찰"};
 const SKILL_ASSISTANCE={independent:"참여자 도움 없이 수행",verbal:"말로 단서 제공",hands:"동작을 직접 도와줌",stopped:"중단 또는 시범으로 전환"};
 
-function newSkillDraft(){return {checks:[],notes:'',evidence:'self',setting:'simulation',assistance:'',remediation:'',interval:'1',followup:false};}
+function newSkillDraft(){
+  return {checks:[],notes:'',evidence:'self',setting:'simulation',assistance:'',remediation:'',interval:'1',
+    observerRole:'',attested:false,focusStep:'',targetLog:'',mappedStep:'',outcome:''};
+}
+
+const SKILL_OUTCOMES={corrected:"교정 수행을 확인",coaching:"추가 지도 필요",not_assessed:"이번에 평가하지 않음"};
+const SKILL_OBSERVERS={peer:"동료 학생",faculty:"교원·지도전문의",resident:"전공의",educator:"술기 교육 담당자"};
+
+function skillRubricSnapshot(skill){
+  return {title:skill.title||'',kind:skill.rubricKind||'training',school:skill.school||'',version:skill.rubricVersion||'이전 판본 · 버전 미기록',source:skill.source||'',steps:[...(skill.steps||[])]};
+}
+
+function rubricKey(r){return JSON.stringify([r.title,r.kind,r.school,r.version,r.source,r.steps]);}
+
+function rubricEditions(...skills){
+  const unique=new Map();
+  for(const s of skills.filter(Boolean)){
+    for(const r of [...(s.editions||[]),skillRubricSnapshot(s)])unique.set(rubricKey(r),r);
+  }
+  return [...unique.values()];
+}
+
+function parseLocalRubric(raw,fields){
+  let spec={...fields},lines=String(raw||'').trim();
+  if(lines.startsWith('{')){
+    let data;
+    try{data=JSON.parse(lines);}catch{throw new Error('JSON 구문을 확인하세요.');}
+    if(!data||!Array.isArray(data.steps))throw new Error('JSON에 행동 문자열의 steps 배열이 필요합니다.');
+    for(const key of ['title','school','source','version','kind','steps'])if(data[key]!=null)spec[key]=data[key];
+  }else spec.steps=lines.split(/\r?\n/);
+  if(!['training','school'].includes(spec.kind))throw new Error('자료 구분을 school 또는 training으로 선택하세요.');
+  for(const key of ['title','school','source','version']){
+    if(spec[key]!=null&&typeof spec[key]!=='string')throw new Error('제목·기관·출처·판본은 텍스트로 입력하세요.');
+    spec[key]=(spec[key]||'').trim();
+  }
+  if(!spec.title||!spec.source||!spec.version)throw new Error('항목 이름, 출처(문서명·쪽 또는 URL), 판본을 입력하세요.');
+  if(spec.kind==='school'&&(!spec.school||!fields.originalConfirmed))throw new Error('학교·기관명을 입력하고 배부된 원문과 일치하는지 확인하세요.');
+  if(spec.steps.some(x=>typeof x!=='string'))throw new Error('steps에 관찰할 행동을 한 줄씩 입력하세요.');
+  spec.steps=spec.steps.map(x=>x.trim()).filter(Boolean);
+  if(!spec.steps.length||spec.steps.length>200||spec.steps.some(x=>!x.replace(/^!\s*/,'').trim()||x.length>1500))throw new Error('관찰 가능한 행동을 1~200개 입력하세요. 각 단계는 1,500자 이내입니다.');
+  if(new Set(spec.steps).size!==spec.steps.length)throw new Error('중복 단계는 부위·시점 등 관찰할 차이를 구분해 주세요.');
+  if(spec.steps.some(step=>skillTemplate('osce').includes(step)))throw new Error('틀의 안내 문구를 직접 관찰할 수 있는 행동으로 바꾸세요.');
+  return {title:spec.title,source:spec.source,school:spec.school,version:spec.version,kind:spec.kind,steps:spec.steps};
+}
+
+function applyLocalRubric(prior,rubric){
+  const now=Date.now(),s=prior||{id:uid('SKILL'),type:'osce',logs:[],createdAt:now};
+  const old=skillRubricSnapshot(s);
+  const editions=prior?rubricEditions(prior):[];
+  if(prior&&rubricKey(old)===rubricKey(rubric))return prior;
+  const skill={...s,title:rubric.title,source:rubric.source,school:rubric.school,rubricVersion:rubric.version,rubricKind:rubric.kind,
+    steps:[...rubric.steps],isTemplate:false,editions,draft:newSkillDraft(),updatedAt:now,rubricChangedAt:now};
+  if(rubric.source!==s.source||rubric.kind!==old.kind)delete skill.sourceUrl;
+  if(rubric.kind==='school'){delete skill.scenario;delete skill.partner;}
+  campus().skills[skill.id]=skill;
+  return skill;
+}
+
+function openRubricDialog(s){
+  const old=s?skillRubricSnapshot(s):null,el=document.createElement('dialog');
+  el.className='campus-dialog';
+  el.innerHTML=`<form><h2>${s?'평가표 판본 등록':'평가표 가져오기'}</h2><p>원문에서 관찰 행동을 한 줄씩 붙여넣거나 TXT·JSON 파일을 여세요. 이 브라우저에 저장되며 전체 백업에 포함됩니다.</p>
+    <label class="field">자료 구분<select name="kind">${practiceOptions({training:'연습용 · 자체 작성 또는 재구성',school:'학교·기관 배부 원본 · 사용자 확인'},old?.kind||'training')}</select></label>
+    <label class="field">학교·기관<input name="school" value="${esc(old?.school||'')}"></label>
+    <label class="field">항목 이름<input name="title" value="${esc(old?.title||'')}" placeholder="정맥혈 채혈"></label>
+    <label class="field">문서명과 쪽 또는 출처 URL<input name="source" value="${esc(old?.source||'')}"></label>
+    <label class="field">판본·발행일<input name="version" value="${esc(s?.rubricVersion||'')}" placeholder="예: 2027학년도 1학기"></label>
+    <label class="field">로컬 파일 열기<input type="file" name="file" accept=".txt,.json,text/plain,application/json"></label>
+    <label class="field">관찰할 행동 또는 JSON<textarea name="steps" rows="8" placeholder="한 줄에 한 단계. 안전 필수 단계는 ! 로 시작합니다.">${esc(old?.steps.join('\n')||'')}</textarea></label>
+    <details><summary>JSON 형식 예시</summary><pre>{"kind":"training","school":"","title":"예시","source":"교육자료 p.2","version":"v1","steps":["대상자를 확인한다."]}</pre></details>
+    <label><input type="checkbox" name="confirm">학교 원본으로 표시할 때, 학교·기관에서 배부한 문서와 대조했습니다.</label>
+    <p role="status" aria-live="polite"></p><div class="actions"><button class="btn pri" type="submit">이 브라우저에 저장</button><button class="btn ghost" type="button" name="cancel">취소</button></div></form>`;
+  document.body.appendChild(el);
+  const form=el.querySelector('form'),fields=form.elements,status=form.querySelector('[role="status"]');
+  fields.namedItem('file').addEventListener('change',async event=>{
+    const file=event.target.files[0];
+    if(!file)return;
+    if(file.size>1024*1024){status.textContent='1 MB 이하의 TXT 또는 JSON 파일을 선택하세요.';return;}
+    try{
+      const text=await file.text();
+      fields.namedItem('steps').value=text;
+      if(text.trim().startsWith('{')){
+        const data=JSON.parse(text);
+        for(const key of ['title','source','school','version','kind'])if(typeof data[key]==='string')fields.namedItem(key).value=data[key];
+        if(Array.isArray(data.steps)&&data.steps.every(x=>typeof x==='string'))fields.namedItem('steps').value=data.steps.join('\n');
+      }
+      status.textContent='가져온 내용과 판본을 확인한 뒤 저장하세요.';
+    }catch{status.textContent='파일을 읽지 못했습니다. 텍스트로 붙여넣을 수 있습니다.';}
+  });
+  form.addEventListener('submit',event=>{
+    event.preventDefault();
+    try{
+      const values=Object.fromEntries(['title','school','version','source','kind'].map(key=>[key,fields.namedItem(key).value]));
+      values.originalConfirmed=fields.namedItem('confirm').checked;
+      const rubric=parseLocalRubric(fields.namedItem('steps').value,values);
+      selectedSkill=applyLocalRubric(s,rubric).id;
+      persistWorkspace();el.close();render();
+    }catch(error){status.textContent=error.message;}
+  });
+  fields.namedItem('cancel').addEventListener('click',()=>el.close());
+  el.addEventListener('close',()=>el.remove());el.showModal();
+}
+
+function skillRecheck(s,draft,checked){
+  if(!draft.targetLog)return {};
+  const original=(s.logs||[]).find(l=>l.id===draft.targetLog&&l.correction);
+  if(!original)return {error:'원래의 관찰·교정 기록을 다시 선택하세요.'};
+  if(draft.evidence==='self'||!draft.attested)return {error:'다시 수행한 행동은 관찰자가 직접 보고 확인해야 합니다.'};
+  if(!Object.hasOwn(SKILL_OUTCOMES,draft.outcome))return {error:'이전 교정 행동의 재평가 결과를 선택하세요.'};
+  const same=rubricKey(original.rubric)===rubricKey(skillRubricSnapshot(s));
+  const target=same?original.correction.index:draft.mappedStep===''||draft.mappedStep==null?-1:Number(draft.mappedStep);
+  if(draft.outcome!=='not_assessed'&&(!Number.isInteger(target)||!s.steps[target]))return {error:'변경된 판본에서 같은 행동에 해당하는 단계를 선택하세요.'};
+  if(draft.outcome==='corrected'&&!checked.has(target))return {error:'교정 완료를 확인한 단계를 체크하세요.'};
+  return {reassessment:{originalId:original.id,originalStep:original.correction.step,targetIndex:target,targetStep:s.steps[target]||'',
+    outcome:draft.outcome,revisionChanged:!same}};
+}
+
+function skillCorrectionsView(s,draft){
+  const sources=(s.logs||[]).filter(l=>l.correction&&l.id);
+  const source=sources.find(l=>l.id===draft.targetLog);
+  const targetSteps=Object.fromEntries(s.steps.map((step,i)=>[i,`${i+1}. ${step}`]));
+  const mapNeeded=source&&rubricKey(source.rubric)!==rubricKey(skillRubricSnapshot(s));
+  const latestOutcome=id=>(s.logs||[]).filter(l=>l.reassessment?.originalId===id).at(-1)?.reassessment.outcome;
+  return `<label class="field">새 교정이 필요한 단계<select data-practice="focusStep">${practiceOptions(targetSteps,draft.focusStep,true)}</select></label>
+    ${sources.length?`<label class="field">이전 교정 항목 다시 관찰<select data-practice="targetLog">${practiceOptions(Object.fromEntries(sources.map(l=>[l.id,`${dstr(l.ts)} · ${l.correction.step} · ${SKILL_OUTCOMES[latestOutcome(l.id)]||'재관찰 대기'}`])),draft.targetLog,true)}</select></label>`:''}
+    ${source?`<p>지난 관찰 · ${esc(source.notes)}<br>다시 볼 행동 · ${esc(source.correction.action)}</p>
+      ${mapNeeded?`<label class="field">판본이 바뀌었습니다. 현재 평가표에서 대응하는 단계<select data-practice="mappedStep">${practiceOptions(targetSteps,draft.mappedStep,true)}</select></label>`:''}
+      <label class="field">이 행동의 재평가<select data-practice="outcome">${practiceOptions(SKILL_OUTCOMES,draft.outcome,true)}</select></label>`:''}`;
+}
 
 function skillRubricError(s){
   const steps = Array.isArray(s.steps) ? s.steps : [];
@@ -111,7 +257,11 @@ function mergeSkillRecords(local,incoming){
   const logs = [...records.values()].sort((a,b)=>a.ts-b.ts || skillLogKey(a).localeCompare(skillLogKey(b)));
   const latest = logs[logs.length-1];
   const latestSource=[newer,local,incoming].find(s=>latest&&s?.logs?.some(l=>skillLogKey(l)===skillLogKey(latest)));
-  return {...newer, logs, due:latest?.nextDue ?? latestSource?.due ?? newer.due};
+  const editionTime=s=>s?.rubricChangedAt||s?.createdAt||0;
+  const edition=local&&editionTime(local)>editionTime(incoming)?local:editionTime(incoming)>editionTime(local)?incoming:newer;
+  return {...newer,...Object.fromEntries(['title','type','rubricKind','school','rubricVersion','source','sourceUrl','steps','scenario','partner','rubricChangedAt','isTemplate'].map(k=>[k,edition[k]])),
+    draft:rubricKey(skillRubricSnapshot(edition))===rubricKey(skillRubricSnapshot(newer))?newer.draft:edition.draft,
+    editions:rubricEditions(local,incoming),logs,due:latest?.nextDue ?? latestSource?.due ?? newer.due};
 }
 
 function addSkillStarter(key){
@@ -134,6 +284,8 @@ function skillPracticeResult(s,draft){
   const evidence=Object.hasOwn(SKILL_EVIDENCE,draft.evidence)?draft.evidence:'self';
   const observed=evidence!=='self';
   const setting=evidence==='supervised'&&draft.setting==='clinical'?'clinical':'simulation';
+  if(observed&&(!draft.attested||!Object.hasOwn(SKILL_OBSERVERS,draft.observerRole)||
+    (evidence==='peer')!==(draft.observerRole==='peer')))return {error:'실제 관찰자의 역할을 선택하고 관찰자가 이 기록을 직접 확인해 주세요.'};
   const notes=String(draft.notes||'').trim(), remediation=String(draft.remediation||'').trim();
   if (observed&&(!notes||!Object.hasOwn(SKILL_ASSISTANCE,draft.assistance))) return {error:'관찰한 행동 한 가지와 실제 도움 수준을 기록하세요.'};
   const checked=new Set((draft.checks||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<s.steps.length));
@@ -141,11 +293,19 @@ function skillPracticeResult(s,draft){
   const missed=s.steps.filter((_,i)=>!checked.has(i));
   const critical=missed.filter(step=>/^!\s/.test(step));
   if (observed&&(critical.length||draft.assistance!=='independent')&&!remediation) return {error:'다음 관찰에서 다시 확인할 행동을 한 가지 적으세요.'};
+  let correction=null;
+  if(observed&&remediation){
+    const i=Number(draft.focusStep);
+    if(draft.focusStep==null||draft.focusStep===''||!Number.isInteger(i)||!s.steps[i])return {error:'관찰자가 교정을 요청한 단계를 선택하세요.'};
+    correction={index:i,step:s.steps[i],action:remediation};
+  }
+  const review=skillRecheck(s,draft,checked);
+  if(review.error)return review;
   const ts=Date.now(),days=[1,3,7,14].includes(Number(draft.interval))?Number(draft.interval):1;
-  const previous=(s.logs||[]).at(-1);
   return {log:{id:uid('PRACTICE'),ts,checked:checked.size,total:s.steps.length,missed,notes,evidence,setting,
-    assistance:observed?draft.assistance:'',critical,remediation,followupOf:draft.followup&&previous?skillLogKey(previous):null,
-    rubric:{source:s.source||'',steps:[...s.steps]},nextDue:ts+days*DAY}};
+    observerRole:observed?draft.observerRole:'',observerConfirmedAt:observed?ts:null,
+    assistance:observed?draft.assistance:'',critical,remediation,correction,reassessment:review.reassessment||null,
+    followupOf:review.reassessment?.originalId||null,rubric:skillRubricSnapshot(s),nextDue:ts+days*DAY}};
 }
 
 function skillLogView(log){
@@ -154,11 +314,14 @@ function skillLogView(log){
   return `<div class="skill-log"><span class="bdg">${esc(dstr(log.ts))}</span> <strong>${esc(log.checked)}/${esc(log.total)}단계</strong>
     <span class="mut"> · ${esc(mode||'방식 미기록')}${log.setting?' · '+(log.setting==='clinical'?'임상 실습':'모의 실습'):''}${help?' · '+esc(help):''}</span>
     ${log.followupOf?'<p>이전 연습에 이어 재평가</p>':''}
+    ${log.observerConfirmedAt?`<p>관찰자 현장 확인 · ${esc(SKILL_OBSERVERS[log.observerRole])}</p>`:log.evidence!=='self'?'<p>관찰자의 현장 확인 기록 없음</p>':''}
+    ${log.correction?`<p>교정할 단계 · ${esc(log.correction.step)}</p>`:''}
+    ${log.reassessment?`<p>다시 관찰한 결과 · ${esc(SKILL_OUTCOMES[log.reassessment.outcome])}<br>${esc(log.reassessment.originalStep)}${log.reassessment.revisionChanged?' → '+esc(log.reassessment.targetStep||'대응 단계 미평가'):''}</p>`:''}
     ${log.evidence!=='self'&&!help?'<p>과거 기록 · 관찰 수준 미기록</p>':''}
     <p>${esc(log.notes||'피드백 기록 없음')}</p>
     ${log.missed?.length?`<p>체크하지 않은 단계 · ${log.missed.map(esc).join(' / ')}</p>`:''}
     ${log.remediation?`<p>다음에 확인할 행동 · ${esc(log.remediation)}</p>`:''}
-    ${log.rubric?`<details><summary>사용한 평가표</summary><p>${esc(log.rubric.source||'자기연습용')}</p><ol>${log.rubric.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol></details>`:''}</div>`;
+    ${log.rubric?`<details><summary>사용한 평가표</summary><p>${esc([log.rubric.kind==='school'?'학교 배부 원본 · 사용자 대조':'연습용',log.rubric.school,log.rubric.source,log.rubric.version].filter(Boolean).join(' · '))}</p><ol>${log.rubric.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol></details>`:''}</div>`;
 }
 
 function skillStartersView(){
@@ -173,26 +336,31 @@ function practiceOptions(labels,current,empty){
 function vSkills(){
   const skills=Object.values(campus().skills),now=Date.now();
   const due=skills.filter(s=>!s.due||s.due<=now),logs=skills.flatMap(s=>s.logs||[]);
-  let h=pageHeading('실기 연습','',`<button class="btn" data-campus="new-skill">${icon('plus')}연습 항목</button>`);
+  let h=pageHeading('실기 연습','',`<div class="actions"><button class="btn" data-campus="import-rubric">로컬 평가표 가져오기</button><button class="btn" data-campus="new-skill">${icon('plus')}연습 항목</button></div>`);
   h+=`<div class="metrics skills-metrics">${metric(skills.length,'연습 항목','체크리스트','layers')}${metric(due.length,'복습할 항목','미연습 또는 복습일 도달','repeat')}${metric(logs.length,'연습 기록','자기 기록 및 관찰 피드백','check')}</div>`;
   if (!skills.length) return h+skillStartersView()+`<div class="card"><button class="btn" data-campus="new-skill">학교 평가표로 새 항목 만들기</button></div>`;
   if (!campus().skills[selectedSkill]) selectedSkill=skills[0].id;
   const s=campus().skills[selectedSkill],draft={...newSkillDraft(),...s.draft},observed=draft.evidence!=='self';
-  const history=[...(s.logs||[])].reverse(),previous=history[0],rubricProblem=skillRubricError(s);
+  const history=[...(s.logs||[])].reverse(),rubricProblem=skillRubricError(s),edition=skillRubricSnapshot(s);
+  const oldEditions=(s.editions||[]).filter(r=>rubricKey(r)!==rubricKey(edition));
   const rubricUrl=s.sourceUrl&&/^https?:\/\//i.test(s.sourceUrl)?` · <a href="${esc(s.sourceUrl)}" target="_blank" rel="noopener noreferrer">교육자료 열기</a>`:'';
   h+=`<div class="skills-layout"><div class="skill-menu">${skills.map(item=>`<button class="skill-item ${item.id===s.id?'active':''}" data-campus="select-skill" data-id="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(CLINICAL_DOMAINS[item.type])} · ${!item.due||item.due<=now?'복습할 때':'다음 '+dstr(item.due)}</small></button>`).join('')}</div>
   <section><div class="card"><div class="section-title"><div><div class="eyebrow">${esc(CLINICAL_DOMAINS[s.type])}</div><h2>${esc(s.title)}</h2></div><button class="btn ghost sm" data-campus="edit-skill">체크리스트 편집</button></div>
   ${s.scenario?`<p>${esc(s.scenario)}</p>`:''}${s.partner?`<details><summary>상대역 지침</summary><p>${esc(s.partner)}</p></details>`:''}
-  <p class="mut">출처 · ${esc(s.source||'미등록')}${rubricUrl}</p>${rubricProblem?`<p class="banner info">${esc(rubricProblem)}</p>`:''}
+  <p class="mut">${edition.kind==='school'?'학교·기관 배부 원본 · 사용자 대조':'연습용 평가표'} · ${esc([s.school,s.source||'출처 미등록',s.rubricVersion].filter(Boolean).join(' · '))}${rubricUrl}</p>
+  ${oldEditions.length?`<details><summary>이전 판본 ${oldEditions.length}개</summary>${oldEditions.map(r=>`<details><summary>${esc([r.version,r.school,r.source].filter(Boolean).join(' · '))}</summary><ol>${r.steps.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details>`).join('')}</details>`:''}
+  ${rubricProblem?`<p class="banner info">${esc(rubricProblem)}</p>`:''}
   <div class="checklist">${(s.steps||[]).map((step,i)=>`<label><input type="checkbox" data-skill-step="${i}" ${draft.checks.includes(i)?'checked':''}><span><small>${String(i+1).padStart(2,'0')}</small>${/^!\s/.test(step)?'<strong>안전 필수 · </strong>':''}${esc(step.replace(/^!\s+/,''))}</span></label>`).join('')}</div>
   <label class="field">연습 방식<select id="skill-evidence" data-practice="evidence">${practiceOptions(SKILL_EVIDENCE,draft.evidence)}</select></label>
   ${draft.evidence==='supervised'?`<label class="field">관찰 환경<select data-practice="setting">${practiceOptions({simulation:'모의 실습',clinical:'지도하 임상 실습'},draft.setting)}</select></label>`:''}
   ${observed?`<label class="field">관찰자가 수행 중 제공한 도움<select id="skill-assistance" data-practice="assistance">${practiceOptions(SKILL_ASSISTANCE,draft.assistance,true)}</select></label>`:''}
+  ${observed?`<label class="field">관찰자 역할<select data-practice="observerRole">${practiceOptions(Object.fromEntries(Object.entries(SKILL_OBSERVERS).filter(([key])=>(key==='peer')===(draft.evidence==='peer'))),draft.observerRole,true)}</select></label>`:''}
   <label class="field">${observed?'직접 본 행동과 관찰 피드백':'자기연습 메모'}<textarea id="skill-observation" data-practice="notes" rows="2" maxlength="3000" placeholder="실명이나 환자 식별정보 없이 행동만 기록">${esc(draft.notes)}</textarea></label>
   <label class="field">다음에 다시 확인할 행동<textarea id="skill-remediation" data-practice="remediation" rows="2" maxlength="1000">${esc(draft.remediation)}</textarea></label>
-  ${previous?`<label><input type="checkbox" data-practice="followup" ${draft.followup?'checked':''}> 지난 연습에 이어 재평가${previous.remediation?' · '+esc(previous.remediation):''}</label>`:''}
+  ${observed?skillCorrectionsView(s,draft):''}
   <label class="field">다음 복습<select id="skill-interval" data-practice="interval">${practiceOptions({1:'내일',3:'3일 뒤',7:'7일 뒤',14:'14일 뒤'},draft.interval)}</select></label>
-  <p class="hint mut">관찰 피드백은 학습자가 기록합니다. 독립 수행 승인은 지도자의 평가 절차를 따르세요.</p>
+  ${observed?`<label><input id="skill-attestation" type="checkbox" data-practice="attested" ${draft.attested?'checked':''}> 관찰자 확인 · 제가 이 수행을 직접 보았고, 기록된 도움 수준·피드백·재평가 결과를 확인했습니다.</label>`:''}
+  <p class="hint mut">현장에서 이 기기에 남기는 확인입니다. 독립 수행 승인은 학교·기관의 평가 절차를 따르세요.</p>
   <div class="actions"><button class="btn pri" data-campus="record-skill" ${rubricProblem?'disabled':''}>수행 기록 저장</button><button class="btn" data-campus="skill-prompt">${icon('copy')}역할극 요청문 복사</button></div></div>
   <div class="card"><h2>수행 기록</h2>${history.length?history.slice(0,3).map(skillLogView).join(''):'<p>첫 연습을 기록하세요.</p>'}${history.length>3?`<details><summary>이전 기록 ${history.length-3}건</summary>${history.slice(3).map(skillLogView).join('')}</details>`:''}</div></section></div>`;
   return h+skillStartersView();
@@ -200,8 +368,11 @@ function vSkills(){
 
 function savePracticeDraft(target){
   const s=campus().skills[selectedSkill],key=target.dataset.practice;
-  if (!s||!['evidence','setting','assistance','notes','remediation','interval','followup'].includes(key)) return;
+  if (!s||!Object.hasOwn(newSkillDraft(),key)||key==='checks') return;
   const draft=s.draft||(s.draft=newSkillDraft());
+  if(key!=='interval'&&key!=='attested'&&draft.attested){draft.attested=false;const input=$('#skill-attestation');if(input)input.checked=false;}
+  if(key==='targetLog'){draft.mappedStep='';draft.outcome='';}
+  if(key==='evidence'){draft.observerRole='';draft.targetLog='';draft.mappedStep='';draft.outcome='';}
   draft[key]=target.type==='checkbox'?target.checked:target.value;
   s.updatedAt=Date.now(); persistWorkspace();
 }
@@ -217,7 +388,21 @@ async function recordSkillPractice(){
   toast('연습 기록을 저장했어요.');
 }
 function newSkill(){const title=prompt('연습할 항목 (예: 복통 문진, 봉합, 심폐소생술)');if(!title?.trim())return;const raw=prompt('분류: CPX, OSCE, 설명 중 하나를 입력하세요.','CPX');if(raw===null)return;const type=/osce|술기/i.test(raw)?'osce':/설명|인계/.test(raw)?'communication':'cpx',id=uid('SKILL');campus().skills[id]={id,title:title.trim(),type,steps:skillTemplate(type),source:'',isTemplate:true,logs:[],createdAt:Date.now(),updatedAt:Date.now()};selectedSkill=id;persistWorkspace();render();}
-function showEditor(type){const b=activeBlock(),s=campus().skills[selectedSkill];const el=document.createElement('dialog');el.className='campus-dialog';el.innerHTML=type==='block'?`<form method="dialog"><h2>블록 정보</h2><label class="field">블록 이름<input name="title" value="${esc(b.title)}" required></label><label class="field">학기<input name="semester" value="${esc(b.semester)}"></label><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`:`<form method="dialog"><h2>체크리스트 편집</h2><label class="field">항목 이름<input name="title" value="${esc(s.title)}" required></label><label class="field">평가표·교육자료 출처<input name="source" value="${esc(s.source||'')}" placeholder="예: 학교 OSCE 평가표 2027, p.12"></label><label class="field">관찰할 행동 (한 줄에 하나, 안전 필수 단계는 ! 로 시작)<textarea name="steps" rows="12" required>${esc(s.steps.join('\n'))}</textarea></label><p class="hint mut">실제 술기는 공식 교육자료와 지도자의 감독 아래 연습하세요.</p><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`;document.body.appendChild(el);el.addEventListener('close',()=>{if(el.returnValue==='save'){const f=new FormData(el.querySelector('form'));if(type==='block'){b.title=String(f.get('title')).trim();b.semester=String(f.get('semester')).trim();b.updatedAt=Date.now();}else{s.title=String(f.get('title')).trim();const source=String(f.get('source')).trim();if(s.source!==source)delete s.sourceUrl;s.source=source;s.steps=String(f.get('steps')).split('\n').map(x=>x.trim()).filter(Boolean);s.draft={checks:[],notes:''};s.isTemplate=false;s.updatedAt=Date.now();}persistWorkspace();render();}el.remove();});el.showModal();}
+function showBlockEditor(){
+  const b=activeBlock(),el=document.createElement('dialog');
+  el.className='campus-dialog';
+  el.innerHTML=`<form method="dialog"><h2>블록 정보</h2><label class="field">블록 이름<input name="title" value="${esc(b.title)}" required></label><label class="field">학기<input name="semester" value="${esc(b.semester)}"></label><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`;
+  document.body.appendChild(el);
+  el.addEventListener('close',()=>{
+    if(el.returnValue==='save'){
+      const f=new FormData(el.querySelector('form'));
+      b.title=String(f.get('title')).trim();b.semester=String(f.get('semester')).trim();b.updatedAt=Date.now();
+      persistWorkspace();render();
+    }
+    el.remove();
+  });
+  el.showModal();
+}
 const baseCampusLoad=loadLocal;
 loadLocal=async function(){await baseCampusLoad();if(session?.ids.some(id=>S.bank[id]?.block_id&&!S.bank[id].school_verified)){session=null;workspace().resume=null;await persistWorkspace();}for(const b of Object.values(campus().blocks)){for(const m of b.materials||[]){const file=await kvGet('asset:'+m.id);assetAvailability.set(m.id,file instanceof Blob);}}};
 const baseCampusMerge=mergeBackup;
@@ -241,11 +426,11 @@ document.addEventListener('input',e=>{
   if(t.dataset.exam||t.dataset.material||t.id==='school-count')saveExamInput(t);
   if(t.dataset.practice&&t.tagName==='TEXTAREA')savePracticeDraft(t);
 });
-document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.practice){savePracticeDraft(t);if(t.dataset.practice==='evidence')render();return;}if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
+document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.practice){savePracticeDraft(t);if(['evidence','targetLog'].includes(t.dataset.practice))render();return;}if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.attested=false;const attestation=$('#skill-attestation');if(attestation)attestation.checked=false;s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
 document.addEventListener('click',async e=>{const btn=e.target.closest('[data-campus]');if(!btn)return;const b=activeBlock(),ex=activeExam(),id=btn.dataset.id;switch(btn.dataset.campus){
  case'new-block':newBlock();break;
  case'select-block':selectedBlock=id;selectedExam='';render();break;
- case'edit-block':showEditor('block');break;
+ case'edit-block':showBlockEditor();break;
  case'new-exam':{const title=prompt('시험/범위 이름 (예: 중간시험, 신장 1–4강)');if(!title?.trim())break;const eid=uid('EXAM');b.exams.push({id:eid,title:title.trim(),date:'',instructions:'',materials:{},count:10,style:'mixed'});b.updatedAt=Date.now();selectedExam=eid;persistWorkspace();render();break;}
  case'download-material':{const m=b.materials.find(x=>x.id===id),file=await kvGet('asset:'+id);if(file instanceof Blob)saveBlob(file,m.name);else toast('이 브라우저에 원본이 없습니다. 파일 복원을 이용하세요.','err');break;}
  case'copy-prompt':await copy(schoolPrompt());break;
@@ -267,11 +452,12 @@ document.addEventListener('click',async e=>{const btn=e.target.closest('[data-ca
  }
  case'study-exam':startSession(schoolItems(b.id,ex.id).filter(q=>q.school_verified&&!S.flags[q.id]).map(q=>q.id));break;
  case'new-skill':newSkill();break;
+ case'import-rubric':openRubricDialog(null);break;
  case'select-skill':selectedSkill=id;render();break;
- case'edit-skill':showEditor('skill');break;
+ case'edit-skill':openRubricDialog(campus().skills[selectedSkill]);break;
  case'skill-starter':addSkillStarter(id);break;
  case'record-skill':await recordSkillPractice();break;
- case'skill-prompt':{const s=campus().skills[selectedSkill];await copy(`의과대학 실기 연습: ${s.title}\n유형: ${CLINICAL_DOMAINS[s.type]}\n평가표 출처: ${s.source||'사용자 확인 필요'}\n체크리스트:\n${s.steps.map((v,i)=>`${i+1}. ${v}`).join('\n')}\n\nCPX라면 표준화 환자 역할로 시작하고 내가 묻는 정보만 단계적으로 답해 주세요. 술기라면 각 단계의 목적·안전 확인·누락을 구두로 점검해 주세요. 실제 손동작을 관찰하지 않았으므로 수행 숙련도를 인증하지 마세요. 평가표 밖의 상세 술기나 의학적 주장은 공식 자료로 확인하고 불확실성을 표시하세요. 내가 시작하기 전 정답과 체크리스트를 미리 설명하지 마세요.`);break;}
+ case'skill-prompt':{const s=campus().skills[selectedSkill];if(s.rubricKind==='school'){await copy(`모의 ${CLINICAL_DOMAINS[s.type]||'실기'} 역할극을 진행하세요. 학습자가 말하는 목표를 듣고 관찰 가능한 행동을 연습시켜 주세요.`);break;}await copy(`의과대학 실기 연습: ${s.title}\n유형: ${CLINICAL_DOMAINS[s.type]}\n평가표 출처: ${s.source||'사용자 확인 필요'}\n체크리스트:\n${s.steps.map((v,i)=>`${i+1}. ${v}`).join('\n')}\n\nCPX라면 표준화 환자 역할로 시작하고 내가 묻는 정보만 단계적으로 답해 주세요. 술기라면 각 단계의 목적·안전 확인·누락을 구두로 점검해 주세요. 실제 손동작을 관찰하지 않았으므로 수행 숙련도를 인증하지 마세요. 평가표 밖의 상세 술기나 의학적 주장은 공식 자료로 확인하고 불확실성을 표시하세요. 내가 시작하기 전 정답과 체크리스트를 미리 설명하지 마세요.`);break;}
 }});
 
 async function clearCampusAssets(){try{const db=await(dbp||(dbp=idbOpen()));await new Promise((resolve,reject)=>{const tx=db.transaction('kv','readwrite'),store=tx.objectStore('kv'),r=store.openKeyCursor();r.onsuccess=()=>{const c=r.result;if(c){if(String(c.key).startsWith('asset:'))store.delete(c.key);c.continue();}};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});assetAvailability.clear();}catch(e){throw new Error('자료 원본 삭제에 실패했습니다. 초기화를 중단합니다.');}}

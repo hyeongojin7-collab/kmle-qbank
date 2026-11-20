@@ -438,7 +438,11 @@ function applyErrata(data){
     if(correction.before_revision!==itemRevision(it))continue;
     if(!Object.keys(correction.changes).every(k=>correction.before_fields[k]===errataFieldFingerprint(it[k])))continue;
     const fixed={...strip(it),...correction.changes,id:it.id,revision:correction.revision};
-    count+=ingestData([{items:[fixed]}],'repo:data/errata.json',{update:false}).updated;
+    const result=ingestData([{items:[fixed]}],'repo:data/errata.json',{update:false});
+    if(result.updated&&typeof correction.reason==='string'){
+      S.bank[it.id]._editionReason={revision:itemRevision(S.bank[it.id]),text:correction.reason};
+    }
+    count+=result.updated;
   }
   return count;
 }
@@ -505,6 +509,7 @@ function replaceEdition(previous,next,source){
   const changed=oldVersion!==newVersion;
   next.id=id;next._added=previous._added;next._source=source;next._updated=Date.now();
   next._history={...(previous._history||{})};
+  if(!changed&&previous._editionReason)next._editionReason=previous._editionReason;
   if(previous._review)next._review=previous._review;
   if(previous._ignoredRemote)next._ignoredRemote=previous._ignoredRemote;
   if(previous._revisedAt)next._revisedAt=previous._revisedAt;
@@ -1020,21 +1025,61 @@ function verifyEdition(id,raw,note,resolveFlag=false){
   if(resolveFlag)delete S.flags[id];
   return next;
 }
+function editionSource(ref){
+  const object=ref&&typeof ref==='object'?ref:{};
+  const raw=typeof ref==='string'?ref:(object.public_url||object.url||'');
+  let href='';
+  try{const parsed=new URL(raw);if(['https:','http:'].includes(parsed.protocol))href=parsed.href;}catch{}
+  const title=object.file||object.title||object.source||raw;
+  const locator=String(object.section||object.locator||object.page||'').replace(raw||'\u0000','').trim();
+  const label=[title,locator].filter(Boolean).join(' · ');
+  return href?'<a href="'+esc(href)+'" target="_blank" rel="noopener noreferrer">'+esc(label)+'</a>':esc(label);
+}
+function editionReviewPreview(it,before,reason){
+  const rows=(Array.isArray(it.options)?it.options:[]).map(o=>{
+    const old=before?.options?.find(p=>p.label===o.label),a=it.option_analysis?.[o.label]||{};
+    const changed=old&&old.text!==o.text;
+    return '<li><strong>'+esc(o.label)+'. '+esc(o.text)+'</strong>'+(o.label===it.answer?' · 정답':'')
+      +(changed?'<div class="hint">이전 보기 · '+esc(old.text)+'</div>':'')
+      +'<div>'+esc(a.why_best||a.trap||a.mechanism||a.rationale||a.explanation||'')+'</div>'
+      +(a.correct_when?'<div class="hint">적용 조건 · '+esc(a.correct_when)+'</div>':'')+'</li>';
+  }).join('');
+  const competing=it.author_review?.closest_competing_option;
+  const refs=(Array.isArray(it.source_refs)?it.source_refs:[]).map(editionSource).filter(Boolean);
+  const older=before&&(before.stem!==it.stem||before.question!==it.question||before.answer!==it.answer)
+    ?'<details><summary>이전 지문과 정답 보기</summary><p>'+esc(before.stem)+'</p><p>'+esc(before.question)+'</p><p>이전 정답 '+esc(before.answer)+'</p></details>':'';
+  return (reason?'<p><strong>개정 이유</strong> '+esc(reason)+'</p>':'')+'<p>'+esc(it.stem)+'</p><p><strong>'+esc(it.question)+'</strong></p>'+older
+    +'<ul>'+rows+'</ul>'+(competing?'<p><strong>가장 가까운 경쟁 선택지 '+esc(competing)+'</strong> · '+esc(it.author_review.discriminator||'')+'</p>':'')
+    +(refs.length?'<h3>원문 대조</h3><ul>'+refs.map(r=>'<li>'+r+'</li>').join('')+'</ul>':'');
+}
 function reviewEdition(id){
   const it=S.bank[id];if(!it||it.block_id)return;
   const dialog=document.createElement('dialog');dialog.className='campus-dialog';
   const editable=strip(it);
   dialog.innerHTML='<form><h2>정답과 근거 대조</h2><p>'+esc(it.topic||it.question||id)+'</p><p>'+esc(qualityReasons(it).join(' · '))+'</p>'
     +(it._incoming?'<p>저장소에 다른 판본이 있습니다. 두 판본의 지문, 정답, 해설을 원문과 비교하세요.</p><button class="btn sm" type="button" data-load-current>현재 판본 불러오기</button> <button class="btn sm" type="button" data-load-incoming>저장소 판본 불러오기</button>':'')
-    +'<label class="field">문항 원문과 선지 해설 (JSON)<textarea name="item" rows="13" required></textarea></label>'
+    +'<article data-edition-preview></article><details><summary>문항 JSON 직접 편집</summary><label class="field">문항 원문과 선지 해설<textarea name="item" rows="13" required></textarea></label></details>'
     +'<label class="field">추가 근거 (URL 또는 서명·연도·절)<input name="reference"></label>'
     +'<label class="field">확인한 근거와 결론<input name="note" required maxlength="1500"></label>'
     +(S.flags[id]?'<label><input type="checkbox" name="resolve"> 신고 해결 확인 · '+esc(S.flags[id].reason||'오류 신고')+'</label>':'')
     +'<p role="status" class="warn"></p><div class="actions"><button class="btn pri" type="submit">원문 대조 결과 저장</button><button class="btn ghost" type="button" data-close>닫기</button></div></form>';
   const form=dialog.querySelector('form'),area=form.elements.namedItem('item');
-  area.value=JSON.stringify(editable,null,2);
-  form.querySelector('[data-load-current]')?.addEventListener('click',()=>{area.value=JSON.stringify(editable,null,2);});
-  form.querySelector('[data-load-incoming]')?.addEventListener('click',()=>{area.value=JSON.stringify(it._incoming,null,2);});
+  const prior=Object.values(it._history||{}).sort((a,b)=>b.at-a.at)[0]?.item;
+  const patch=activeErrata?.items?.find(c=>c.id===id&&editionNumber(c)===editionNumber(it)&&
+    c.changes&&Object.entries(c.changes).every(([k,v])=>canonicalJSON(it[k])===canonicalJSON(v)));
+  const reason=it._editionReason?.revision===itemRevision(it)?it._editionReason.text:patch?.reason;
+  const preview=form.querySelector('[data-edition-preview]');
+  function show(candidate,before,note){
+    area.value=JSON.stringify(candidate,null,2);
+    preview.innerHTML=editionReviewPreview(candidate,before,note);
+  }
+  show(editable,prior,reason);
+  form.querySelector('[data-load-current]')?.addEventListener('click',()=>show(editable,prior,reason));
+  form.querySelector('[data-load-incoming]')?.addEventListener('click',()=>show(it._incoming,editable,''));
+  area.addEventListener('change',()=>{
+    try{preview.innerHTML=editionReviewPreview(JSON.parse(area.value),editable,'');}
+    catch{preview.textContent='JSON 형식을 확인해 주세요.';}
+  });
   form.querySelector('[data-close]').addEventListener('click',()=>dialog.close());
   form.addEventListener('submit',async event=>{
     event.preventDefault();
@@ -1046,6 +1091,7 @@ function reviewEdition(id){
     }catch(error){form.querySelector('[role=status]').textContent=error.message;}
   });
   dialog.addEventListener('close',()=>dialog.remove());document.body.appendChild(dialog);dialog.showModal();
+  if(typeof markAnswerExposure==='function')markAnswerExposure(id);
 }
 function revisionHistory(it){
   const records=Object.entries(it._history||{});
@@ -1188,6 +1234,9 @@ function mergeBackup(b){
     if(itemRevision(current)!==incomingVersion){
       current._history[incomingVersion] ||= {item:strip(incoming),at:incoming._updated||0};
       continue;
+    }
+    if(incoming._editionReason?.revision===incomingVersion&&typeof incoming._editionReason.text==='string'){
+      current._editionReason=incoming._editionReason;
     }
     const review=incoming._review;
     if(review?.signature===reviewSignature(current)&&(!current._review||review.at>current._review.at)){
@@ -1337,13 +1386,13 @@ document.addEventListener('keydown',e=>{
 });
 
 </script>
-<script src="transfer.js?v=clinical2"></script>
-<script src="workspace.js?v=clinical2"></script>
+<script src="transfer.js?v=clinical3"></script>
+<script src="workspace.js?v=clinical3"></script>
 <script src="reason-patterns.js?v=clinical2"></script>
-<script src="campus.js?v=clinical2"></script>
-<script src="visual-practice.js?v=clinical2"></script>
-<script src="rounds.js?v=clinical2"></script>
-<script src="mock.js?v=clinical2"></script>
+<script src="campus.js?v=clinical3"></script>
+<script src="visual-practice.js?v=clinical3"></script>
+<script src="rounds.js?v=clinical3"></script>
+<script src="mock.js?v=clinical3"></script>
 <script>
 /* ============ 시작 ============ */
 (async()=>{app.innerHTML='<div class="card mut">불러오는 중…</div>';await loadLocal();render();syncRemote();})();

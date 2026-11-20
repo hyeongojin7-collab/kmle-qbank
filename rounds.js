@@ -95,6 +95,21 @@ function roundAttempts(){
 function savedRounds(c){
   return Object.values(roundAttempts()).filter(a=>a.caseId===c.id).sort((a,b)=>b.finishedAt-a.finishedAt);
 }
+function presentedRound(c){
+  const existing=roundRecords()[c.id],r=existing||newRound();
+  if(!r.openedAt){
+    if(existing?.done){
+      r.finishedAt=r.finishedAt||r.updatedAt||0;
+      if(!r.attemptId)r.attemptId='legacy-'+c.id+'-'+r.finishedAt;
+    }
+    r.presentation=existing?(r.presentation||'unknown'):(savedRounds(c).length?'repeat':'first');
+    r.openedAt=Date.now();persistRound(c,r);
+  }
+  return r;
+}
+const PRESENTATION={first:'이 기기의 기록상 첫 제시',repeat:'같은 환자 재연습',unknown:'이전 기록 · 첫 제시 여부 미상'};
+const RECEIVERS={peer:'실제 동료',supervisor:'실제 지도자',self:'혼자 예상하기'};
+const RECEIPT={unknown:'미평가',both:'두 가지 모두 전달됨',one:'한 가지만 전달됨',neither:'둘 다 전달되지 않음'};
 function archiveRound(c,r){
   if(!r.done)return;
   const finishedAt=r.finishedAt||r.updatedAt||0;
@@ -127,6 +142,8 @@ function roundCoaching(c,r){
     '내가 확인한 순서와 결과',observed||'직접 확인한 소견 없음',
     '선택지를 보기 전 계획',r.firstPlan||'확인할 수 없음','기록된 초기 판단',r.hypothesis||'미작성','행동과 환자 경과',trace,
     '재평가 계획',r.followup||'미작성','전달 대상과 과제',c.audience,'내 실제 표현',r.handoff||'미작성',
+    '증례 노출',PRESENTATION[r.presentation]||PRESENTATION.unknown,
+    '되말하기와 수정',readbackSummary(r).map(row=>row.join(' · ')).join('\n')||'청자 근거 없음',
     '증례의 재평가 기준',c.check,'전달 예시',c.model,...c.source.map(i=>ROUND_SOURCES[i][1]),
     '내 선택과 발화를 바탕으로 가장 잘한 판단과 가장 중요한 교정점 하나씩만 알려줘. 미작성 내용은 평가를 보류해줘. 먼저 내가 다시 설명하게 한 뒤, 조건이 달라진 새 환자의 최초 호소만 제시하고 내 요청에 따라 정보를 공개해줘.'
   ].join('\n\n');
@@ -137,17 +154,55 @@ function roundField(key,label,value){
 function roundChoice(label,index,action,selected){
   return '<button class="btn round-choice" data-round="'+action+'" data-index="'+index+'" '+(selected?'disabled':'')+'>'+esc(label)+'</button>';
 }
+function readbackSummary(r){
+  const p=r.communication;
+  if(!p)return [];
+  const rows=[['첫 전달',p.first]];
+  if(!p.readbackAt)return [...rows,['되말하기','완료한 기록 없음 · 전달 정도 미평가']];
+  rows.push(['입력자가 선택한 연습 방식',RECEIVERS[p.mode]||'미상'],[p.mode==='self'?'내가 예상한 위험':'청자가 되말한 위험',p.danger],[p.mode==='self'?'내가 예상한 요청':'청자가 되말한 요청',p.request],
+    [p.mode==='self'?'본인 추정':'청자가 표시한 전달 정도',RECEIPT[p.rating]||RECEIPT.unknown],['다시 말할 때 고칠 한 가지',p.correction]);
+  if(p.secondAt)rows.push(['같은 환자에서 교정 뒤 두 번째 전달',p.second]);
+  return rows;
+}
+function readbackView(r){
+  const p=r.communication;
+  if(!p)return '<button class="btn" data-round="lock-handoff">첫 전달 저장하고 되말하기 연습</button>';
+  let h='<div class="round-observation"><h3>첫 전달</h3><p>'+esc(p.first)+'</p>';
+  if(!p.readbackAt){
+    h+='<p>실제 청자와 연습 중이면 화면의 예시를 열기 전에 첫 전달을 말하고, 청자에게 기기를 건네세요.</p>'+
+      '<div class="actions">'+Object.entries(RECEIVERS).map(([key,label])=>'<button class="btn" data-round="receiver" data-value="'+key+'" aria-pressed="'+(p.mode===key)+'">'+label+'</button>').join('')+'</div>';
+    if(p.mode){
+      const actual=p.mode!=='self';
+      h+='<p>'+ (actual?'청자가 직접 작성합니다. 들리지 않은 내용은 “듣지 못함”으로 적으세요.':'혼자 연습할 때는 상대가 어떻게 이해할지 예상해 적으세요.')+'</p>'+
+        roundField('danger',actual?'어떤 위험 또는 주의할 변화를 들었습니까?':'상대가 이해했을 것으로 예상하는 위험',p.danger)+
+        roundField('request',actual?'본인이 무엇을, 언제 해야 한다고 들었습니까?':'상대가 이해했을 것으로 예상하는 행동과 시점',p.request)+
+        '<label class="round-field">'+(actual?'청자가 판단한 전달 정도':'내가 예상한 전달 정도')+
+        '<select data-round-rating>'+Object.entries(RECEIPT).map(([key,label])=>'<option value="'+key+'" '+(p.rating===key?'selected':'')+'>'+label+'</option>').join('')+'</select></label>'+
+        roundField('correction','다시 들을 때 한 가지 더 분명했으면 하는 점',p.correction)+
+        '<button class="btn" data-round="lock-readback">되말하기와 교정점 저장</button>';
+    }
+  }else{
+    const rows=readbackSummary(r).slice(1);
+    h+='<dl>'+rows.map(([label,value])=>'<dt>'+esc(label)+'</dt><dd>'+esc(value)+'</dd>').join('')+'</dl>';
+    if(!p.secondAt)h+=roundField('second','학습자가 기기를 돌려받아, 교정점을 반영해 두 문장으로 다시 전달하세요.',p.second)+
+      '<button class="btn" data-round="lock-second">두 번째 전달 저장</button>';
+  }
+  return h+'</div>';
+}
 function roundResult(c,r){
   const firstAction=c.actions[r.actions[0]]?.[0];
   const includedPlan=Boolean(r.firstPlan?.trim());
   const fullTrace=includedPlan&&r.followup?.trim()&&r.handoff?.trim();
   const status=fullTrace?'선지 전 계획·재평가·전달 기록':'해설 열람 · 일부 수행 근거 미기록';
   const first=firstAction?(r.actions[0]===c.best?'권장 행동을 첫 선택으로 고름':'첫 선택 후 계획을 수정함'):'첫 선택 기록 없음';
+  const receiverRows=r.communication?readbackSummary(r).slice(1):[['되말하기','청자 기록 없음 · 전달 정도 미평가']];
   return '<p><strong>'+status+'</strong></p><dl>'+
     '<dt>선지 전 내 계획</dt><dd>'+esc(r.firstPlan||'기록 없음')+'</dd>'+
     '<dt>첫 행동</dt><dd>'+esc(firstAction||'기록 없음')+' · '+first+'</dd>'+
     '<dt>재평가 계획</dt><dd>'+esc(r.followup||'기록 없음')+'</dd>'+
-    '<dt>인계 또는 환자 설명</dt><dd>'+esc(r.handoff||'기록 없음')+'</dd></dl>';
+    '<dt>인계 또는 환자 설명</dt><dd>'+esc(r.handoff||'기록 없음')+'</dd>'+
+    '<dt>증례 노출</dt><dd>'+esc(PRESENTATION[r.presentation]||PRESENTATION.unknown)+'</dd>'+
+    receiverRows.map(([label,value])=>'<dt>'+esc(label)+'</dt><dd>'+esc(value)+'</dd>').join('')+'</dl>';
 }
 function roundHistory(c,r){
   const previous=savedRounds(c).filter(a=>a.attemptId!==r.attemptId);
@@ -159,10 +214,10 @@ function roundHistory(c,r){
 }
 let roundIndex=0;
 function vRounds(){
-  const c=ROUNDS[roundIndex],r=roundDraft(c),treated=r.actions.includes(c.best);
+  const c=ROUNDS[roundIndex],r=presentedRound(c),treated=r.actions.includes(c.best);
   const tabs=ROUNDS.map((item,i)=>'<button class="filter-tab '+(i===roundIndex?'active':'')+'" data-round="switch" data-index="'+i+'" aria-pressed="'+(i===roundIndex)+'">'+esc(item.title)+(roundDraft(item).done?' · 해설 확인':'')+'</button>').join('');
   let h=pageHeading('모의 당직','호출을 받고, 필요한 정보를 찾고, 환자의 다음 단계를 결정하세요.')+'<div class="filter-tabs">'+tabs+'</div><div class="round-layout"><section class="card round-card"><p class="round-setting">'+esc(c.setting)+' · 가상 증례</p><h2>'+esc(c.title)+'</h2><p class="round-call">'+esc(c.opening)+'</p><div class="round-vitals">'+c.vitals.map(v=>'<span>'+esc(v)+'</span>').join('')+'</div><p>'+esc(c.context)+'</p></section>';
-  h+='<section class="card round-card"><h2>무엇을 더 확인할까요?</h2><div class="round-choices">'+c.findings.map(([label],i)=>roundChoice(label,i,'inspect',treated||r.seen.includes(i))).join('')+'</div><div aria-live="polite">'+r.seen.map(i=>'<div class="round-observation"><strong>'+esc(c.findings[i][0])+'</strong><p>'+esc(c.findings[i][1])+'</p></div>').join('')+'</div>';
+  h+='<section class="card round-card"><p class="hint mut">'+esc(PRESENTATION[r.presentation]||PRESENTATION.unknown)+'</p><h2>무엇을 더 확인할까요?</h2><div class="round-choices">'+c.findings.map(([label],i)=>roundChoice(label,i,'inspect',treated||r.seen.includes(i))).join('')+'</div><div aria-live="polite">'+r.seen.map(i=>'<div class="round-observation"><strong>'+esc(c.findings[i][0])+'</strong><p>'+esc(c.findings[i][1])+'</p></div>').join('')+'</div>';
   const optionsVisible=r.optionsOpened||r.actions.length>0;
   if(!optionsVisible)h+=roundField('hypothesis','현재 의심하는 원인과 먼저 할 행동을 근거와 함께 한 문장으로 적어 보세요.',r.hypothesis);
   else if(r.hypothesis)h+='<p><strong>기록한 계획</strong> · '+esc(r.hypothesis)+'</p>';
@@ -173,25 +228,45 @@ function vRounds(){
   }
   h+=r.actions.map(i=>'<div class="round-response"><strong>'+esc(c.actions[i][0])+'</strong><p>'+esc(c.actions[i][1])+'</p></div>').join('')+'</section>';
   if(treated&&!r.done){
-    h+='<section class="card round-card"><h2>재평가와 전달</h2>'+roundField('followup',c.reassess,r.followup)+roundField('handoff',c.audience,r.handoff)+'<button class="btn pri" data-round="finish">내 판단과 해설 비교</button></section>';
+    h+='<section class="card round-card"><h2>재평가와 전달</h2>'+roundField('followup',c.reassess,r.followup)+
+      (r.communication?'':roundField('handoff',c.audience,r.handoff))+readbackView(r)+
+      '<div class="actions"><button class="btn pri" data-round="finish">현재 기록으로 해설 보기</button></div></section>';
   }
   if(r.done){
     const missed=c.findings.filter((_,i)=>!r.seen.includes(i));
     h+='<section class="card round-card"><h2>이번 시도</h2>'+roundResult(c,r)+'<p class="hint mut">직접 작성한 내용과 선택 순서를 보존합니다. 계획의 적절성과 전달의 정확성은 예시와 비교하세요.</p><h3>판단 근거</h3><p>'+esc(c.key)+'</p><h3>재평가 기준</h3><p>'+esc(c.check)+'</p><h3>전달 예시</h3><p>'+esc(c.model)+'</p>';
     if(missed.length)h+='<details><summary>이번에 확인하지 않은 소견 '+missed.length+'개</summary>'+missed.map(([label,result])=>'<p><strong>'+esc(label)+'</strong> · '+esc(result)+'</p>').join('')+'</details>';
-    h+='<p class="round-sources">'+c.source.map(i=>'<a target="_blank" rel="noopener" href="'+ROUND_SOURCES[i][1]+'">'+ROUND_SOURCES[i][0]+'</a>').join(' · ')+'</p><div class="actions"><button class="btn pri" data-round="switch" data-index="'+((roundIndex+1)%ROUNDS.length)+'">다른 환자 보기</button><button class="btn" data-round="coach">내 기록으로 코칭 요청문 복사</button><button class="btn" data-round="retry">이 환자 다시 연습</button></div></section>';
+    const unseen=ROUNDS.findIndex(other=>other.id!==c.id&&!roundRecords()[other.id]&&!savedRounds(other).length);
+    const next=unseen>=0?unseen:(roundIndex+1)%ROUNDS.length;
+    h+='<p class="round-sources">'+c.source.map(i=>'<a target="_blank" rel="noopener" href="'+ROUND_SOURCES[i][1]+'">'+ROUND_SOURCES[i][0]+'</a>').join(' · ')+'</p><div class="actions"><button class="btn pri" data-round="switch" data-index="'+next+'">'+(unseen>=0?'기록상 처음 보는 환자':'다른 환자 보기')+'</button><button class="btn" data-round="coach">내 기록으로 코칭 요청문 복사</button><button class="btn" data-round="retry">이 환자 다시 연습</button></div></section>';
     if(c.visualPractice&&window.KMLEVisualPractice)h+='<section class="card round-card"><h2>다른 환자 영상으로 판독 연습</h2><div data-visual-practice="'+esc(c.visualPractice)+'"></div></section>';
   }
   return h+roundHistory(c,r)+'</div>';
 }
 app.addEventListener('input',e=>{
   const field=e.target.dataset.roundField;
-  if(!['hypothesis','followup','handoff'].includes(field))return;
+  if(!field)return;
   const c=ROUNDS[roundIndex],r=roundDraft(c);
   if(r.done||(field==='hypothesis'&&(r.optionsOpened||r.actions.length)))return;
   if(field!=='hypothesis'&&!r.actions.includes(c.best))return;
-  r[field]=e.target.value;
+  const p=r.communication;
+  if(['danger','request','correction'].includes(field)){
+    if(!p?.mode||p.readbackAt)return;
+    p[field]=e.target.value;
+  }else if(field==='second'){
+    if(!p?.readbackAt||p.secondAt)return;
+    p.second=e.target.value;
+  }else if(['hypothesis','followup','handoff'].includes(field)){
+    if(field==='handoff'&&p)return;
+    r[field]=e.target.value;
+  }else return;
   persistRound(c,r);
+});
+app.addEventListener('change',e=>{
+  if(!Object.hasOwn(e.target.dataset,'roundRating'))return;
+  const c=ROUNDS[roundIndex],r=roundDraft(c),p=r.communication;
+  if(r.done||!p?.mode||p.readbackAt||!Object.hasOwn(RECEIPT,e.target.value))return;
+  p.rating=e.target.value;persistRound(c,r);
 });
 app.addEventListener('click',e=>{
   const btn=e.target.closest('[data-round]');
@@ -213,6 +288,32 @@ app.addEventListener('click',e=>{
     case 'act':
       if(!c.actions[i]||r.actions.includes(i)||r.actions.includes(c.best))return;
       r.actions.push(i);break;
+    case 'lock-handoff':
+      if(r.done||r.communication||!r.actions.includes(c.best))return;
+      if(!r.handoff?.trim()){toast('받는 사람에게 전달할 말을 먼저 적으세요.');return;}
+      r.communication={first:r.handoff.trim(),firstAt:Date.now(),mode:'',rating:'unknown'};break;
+    case 'receiver':{
+      const p=r.communication,mode=btn.dataset.value;
+      if(r.done||!p||p.readbackAt||!Object.hasOwn(RECEIVERS,mode)||p.mode===mode)return;
+      if(p.mode&&[p.danger,p.request,p.correction].some(text=>text?.trim())){
+        toast('되말하기 작성 중에는 기록 방식을 바꿀 수 없습니다.');return;
+      }
+      p.mode=mode;p.rating='unknown';break;
+    }
+    case 'lock-readback':{
+      const p=r.communication;
+      if(r.done||!p?.mode||p.readbackAt)return;
+      if(![p.danger,p.request,p.correction].every(text=>text?.trim())){
+        toast('들은 위험과 행동, 고칠 점 한 가지를 적으세요.');return;
+      }
+      p.readbackAt=Date.now();break;
+    }
+    case 'lock-second':{
+      const p=r.communication;
+      if(r.done||!p?.readbackAt||p.secondAt)return;
+      if(!p.second?.trim()){toast('교정점을 반영해 다시 전달한 말을 적으세요.');return;}
+      p.secondAt=Date.now();break;
+    }
     case 'finish':
       if(r.done||!r.actions.includes(c.best))return;
       r.done=true;r.finishedAt=Date.now();
@@ -224,7 +325,7 @@ app.addEventListener('click',e=>{
     case 'retry':
       if(!r.done)return;
       archiveRound(c,r);
-      persistRound(c,newRound());render();window.scrollTo(0,0);return;
+      persistRound(c,{...newRound(),openedAt:Date.now(),presentation:'repeat'});render();window.scrollTo(0,0);return;
     default:return;
   }
   persistRound(c,r);render();

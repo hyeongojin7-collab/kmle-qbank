@@ -37,3 +37,18 @@ assert.equal(run('isReservedTransfer(seven)'),false);
 assert.equal(run('transferSchedule(at+40*DAY)[0].due'),(2000+47)*86400000);
 run('seen.c=at+41*DAY'); assert.equal(run('transferSchedule(at+50*DAY).length'),0);
 console.log('PASS: held-out transfers, dated eligibility, abandoned/revealed items, revision and spacing');
+run(`S.bank.b.options=[{label:'A',text:'submitted choice'}];
+     S.bank.c.stem='never reveal this patient';`);
+assert.doesNotMatch(run('transferReviewPanel()'),/submitted choice|never reveal/);
+run(`S.attempts.push({qid:'a',ts:at+41*DAY,revision:1,prediction:{mode:'written',text:'after-the-fact memory'}});
+     S.attempts.push({qid:'b',ts:at+40*DAY+100,revision:1,correct:false,choice:'A',
+       prediction:{mode:'written',text:'my initial action'},predictionMatch:'changed',transferAssessment:session.transferAssessment});`);
+const comparison = run('transferReviewPanel()');
+assert.match(comparison,/my initial action/);
+assert.match(comparison,/변경/);
+assert.match(comparison,/submitted choice/);
+assert.doesNotMatch(comparison,/after-the-fact memory|never reveal/);
+assert.match(comparison,/서면 응답 미기록/);
+run(`S.bank.b.rev=2;`);
+assert.doesNotMatch(run('transferReviewPanel()'),/my initial action|submitted choice/);
+console.log('PASS: only submitted current cases expose a comparison, using the anchor known when the variant opened');

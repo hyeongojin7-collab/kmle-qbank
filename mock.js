@@ -11,6 +11,31 @@ function mockPool(){
     isStudyEligible(item) && firstItemPresentation(item.id)==null && firstItemExposure(item.id)==null);
 }
 
+function mockCoverage(items){
+  if(!items.length)return '';
+  // Show only known broad categories. Imported metadata can contain an answer or a patient vignette.
+  const counts=[new Map(),new Map(),new Map()];
+  const categories=['과목','분과','판단 유형'],other='기타·미분류';
+  for(const item of items){
+    const subject=canon(item.subject,SUBJ_ALIASES),system=canon(primSys(item),SYS_ALIASES);
+    const type=Object.entries(TYPE_KO).find(([code,label])=>_key(code)===_key(item.question_type)||_key(label)===_key(item.question_type));
+    const row=[Object.hasOwn(SUBJ_ALIASES,subject)?subject:other,Object.hasOwn(SYS_ALIASES,system)?system:other,type?type[1]:other];
+    row.forEach((label,i)=>counts[i].set(label,(counts[i].get(label)||0)+1));
+  }
+  const systems=counts[1],small='소표본·미분류';
+  for(const [label,n] of [...systems]){
+    if(n<3||label===other){
+      systems.delete(label);
+      systems.set(small,(systems.get(small)||0)+n);
+    }
+  }
+  const rows=counts.map((group,i)=>{
+    const labels=[...group].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ko'));
+    return `<dt>${categories[i]}</dt><dd>${labels.map(([label,n])=>`${esc(label)} ${n}문항`).join(' · ')}</dd>`;
+  });
+  return `<details><summary>출제 가능한 문항의 분포</summary><dl>${rows.join('')}</dl><p class="hint mut">이 문제은행 기준이며 공식 출제 비율과의 일치도는 미평가입니다. 1~2문항인 분과는 묶어 표시합니다.</p></details>`;
+}
+
 function mixedMockItems(items,count){
   const groups=new Map();
   for(const item of shuffle(items.slice())){
@@ -192,8 +217,9 @@ function vMock(){
     h+=`<div class="card"><h2>${block.timedOut?'시간 종료':'제출 완료'}</h2><p><strong>제출 당시 ${t.correct} / ${t.total} 정답</strong> · 미응답 ${t.unanswered} · 제외 ${t.withdrawn} · 소요 ${mockDuration(block.finishedAt-block.startedAt)}</p><div class="actions">${block.questions.map((q,i)=>`<button class="btn" data-mock="debrief" data-value="${i}" ${block.withdrawn[q.id]?'disabled':''}>${i+1}번 · ${block.withdrawn[q.id]?'제외':block.answers[q.id]?.choice==null?'미응답':block.answers[q.id].choice===q.answer?'정답':'오답'}${!block.withdrawn[q.id]&&!mockCurrent(q)?' · 이전 검토 상태':''}</button>`).join('')}</div></div>`;
     if(mockDebrief!=null&&block.questions[mockDebrief]&&!block.withdrawn[block.questions[mockDebrief].id])h+=mockDebriefView(block,block.questions[mockDebrief]);
   }
-  const available=mockPool().length;
+  const availableItems=mockPool(),available=availableItems.length;
   if(!active.length)h+=`<div class="card"><h2>새 블록</h2><p>출제 가능 ${available}문항 · 문항당 90초 · 제출 후 해설 공개</p>
+    ${mockCoverage(availableItems)}
     <p>선택한 수보다 문항이 적으면 남은 수로 시작합니다. 처음 보는 변형 환자는 별도 복습에 남겨 둡니다.</p><div class="actions">${[5,10,20].map(n=>`<button class="btn" data-mock="start" data-value="${n}" ${available?'':'disabled'}>${n}문항</button>`).join('')}<a class="btn ghost" href="#browse">문제 라이브러리</a></div></div>`;
   if(history.length)h+=`<div class="card"><h2>블록 기록</h2>${history.map(b=>`<p><button class="btn" data-mock="open" data-value="${esc(b.id)}">${esc(dstr(b.startedAt))} · ${b.questions.length}문항 · ${b.finishedAt?'결과 보기':'이어 풀기'}</button></p>`).join('')}</div>`;
   return h;

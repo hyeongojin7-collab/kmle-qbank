@@ -215,3 +215,7 @@ input[type=checkbox] { accent-color: var(--acc); }
 .round-card h3,.recall-panel h3 { font-size:17px; color:var(--text); }
 .round-sources a { display:inline-block; margin-top:12px; font-size:13px; }
 .recall-panel { border-top:1px solid var(--line); margin-top:20px; padding-top:8px; }
+.transfer-card,.next-study { line-height:1.65; word-break:keep-all; overflow-wrap:anywhere; }
+.transfer-card .hint,.next-study p { margin:.65rem 0; }
+.transfer-card .btn,.next-study .btn { margin:.3rem 0; }
+.round-card video,.round-card img { max-width:100%; height:auto; }

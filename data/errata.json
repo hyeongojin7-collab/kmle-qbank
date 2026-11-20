@@ -1,0 +1,201 @@
+{
+  "schema": "kmle-content-errata",
+  "items": [
+    {
+      "id": "GEN-CV9-20261107-09-02",
+      "revision": 2,
+      "reason": "위험하다는 표현으로 답을 드러내던 오답을 동등한 영상 선택지로 고치고 환자 관류와 검사 접근성을 근거로 비교합니다.",
+      "changes": {
+        "learning_objective": "진행하는 쇼크에서 영상 접근성·남은 해부학 질문을 함께 고려해 급성 대동맥증후군의 다음 검사를 선택한다.",
+        "stem": "65세 남성이 갑자기 시작한 가슴·등 통증 직후 쓰러졌다. 혈압은 78/48 mmHg이고 새 이완기 심잡음이 들린다. 승압제를 증량하는 중에도 침대를 옮기자 수축기 혈압이 다시 60 mmHg대로 떨어진다. 방금 시행한 TTE에서 심낭액과 대동맥판 역류는 확인했지만 근위 상행 대동맥은 창이 나빠 보이지 않았다. 흉부외과와 마취팀이 도착했고 침상에서 경식도 검사 준비가 가능하다. CT와 MR은 다른 층에 있다.",
+        "question": "소생과 수술 준비를 병행하면서 근위 대동맥 병변을 지금 확인할 검사로 가장 적절한 것은?",
+        "options": [
+          {
+            "label": "A",
+            "text": "흉부 대동맥 MR 혈관조영"
+          },
+          {
+            "label": "B",
+            "text": "침상 경흉부 심초음파 재검"
+          },
+          {
+            "label": "C",
+            "text": "침상 경식도 심초음파"
+          },
+          {
+            "label": "D",
+            "text": "심전도 동기화 대동맥 CT 혈관조영"
+          },
+          {
+            "label": "E",
+            "text": "카테터 대동맥조영술"
+          }
+        ],
+        "option_analysis": {
+          "A": {
+            "verdict": "incorrect",
+            "trap": "MR은 벽과 혈관을 평가할 수 있지만, 지속적으로 혈압이 떨어지는 환자에서 이송·획득 시간과 감시 환경이 불리하다.",
+            "correct_when": "안정적이고 CT가 부적절하거나 장기 추적에서 대체 영상이 필요할 때 검토한다.",
+            "misconception_id": "genesis.time",
+            "misconception": "결정적 처치를 검사 뒤로 미룸"
+          },
+          "B": {
+            "verdict": "incorrect",
+            "trap": "방금 얻은 경흉부 창에서 상행부가 보이지 않았다. 같은 제한이 있는 재검보다 현장에서 즉시 가능한 TEE가 남은 해부학 질문을 직접 해결한다.",
+            "correct_when": "처음 침상 평가에서 심장압전이나 심한 대동맥판 역류 등 합병증을 신속히 찾을 때 유용하다.",
+            "misconception_id": "genesis.efficacy",
+            "misconception": "초기 검사 반응을 재평가하지 않음"
+          },
+          "C": {
+            "verdict": "correct",
+            "why_best": "첫 TTE의 근위 대동맥 영상이 불충분하다. 이미 현장에 있는 TEE팀은 소생과 수술 준비를 계속하면서 근위 병변, 판막, 심낭을 평가할 수 있다.",
+            "correct_when": "안정성·현장 전문성·영상 창을 함께 고려한다. TEE는 흉부 대동맥의 일부 구간에서 사각이 생길 수 있다.",
+            "KEY": "불안정한 관류 + 불충분한 TTE 창 + 즉시 가능한 TEE → 수술 준비와 병행한 근위 대동맥 평가.",
+            "HBM": "어떤 검사가 정확한지와 환자가 그 검사를 안전하게 받을 수 있는지를 함께 판단한다.",
+            "reasoning_skeleton": "소생과 외과 호출 → 이미 확인한 합병증 → 남은 해부학 질문 → 현재 가능한 영상 → 검사 결과에 따른 수술 판단",
+            "가장 강한 경쟁 선택지": "CT 혈관조영은 대동맥 전체와 분지를 평가하는 강력한 대안이다. 이 환자에서는 지속적 승압제 증량과 이송 중 악화가 우선순위를 바꾼다."
+          },
+          "D": {
+            "verdict": "incorrect",
+            "trap": "전 대동맥의 해부학을 파악하기 좋은 검사지만 지금은 지지 치료 중에도 관류가 불안정하고 CT실까지 이동이 필요하다.",
+            "correct_when": "순환을 안정적으로 유지하며 CT에 접근할 수 있으면 급성 대동맥증후군의 일반적 일차 검사다.",
+            "misconception_id": "genesis.pressure",
+            "misconception": "관류 상태를 영상 선택에 반영하지 않음"
+          },
+          "E": {
+            "verdict": "incorrect",
+            "trap": "침습적 조영은 심낭·판막까지 함께 파악할 수 있는 현장 TEE에 비해 이 상황의 첫 검사로서 이득이 작다.",
+            "correct_when": "혈관 내 치료 중 추가 해부학 정보를 얻는 등 별도의 시술 맥락에서 활용할 수 있다.",
+            "misconception_id": "genesis.time",
+            "misconception": "결정적 처치를 검사 뒤로 미룸"
+          }
+        },
+        "causal_chain": [
+          "근위 대동맥 병변은 대동맥판 역류나 심낭 내 출혈을 일으킬 수 있다.",
+          "급격한 저관류로 이송 가능성이 제한되고 첫 TTE는 근위 대동맥을 충분히 보여주지 못했다.",
+          "현장 TEE로 시급한 해부학 질문을 확인하면서 소생과 수술 준비를 계속한다."
+        ],
+        "takeaway": "전 대동맥의 지도와 당장 필요한 수술 판단에 필요한 영상은 환자 상태에 따라 우선순위가 달라진다.",
+        "misconception_tags": [
+          "결정적 처치를 검사 뒤로 미룸",
+          "초기 검사 반응을 재평가하지 않음",
+          "관류 상태를 영상 선택에 반영하지 않음"
+        ],
+        "misconception_ids": [
+          "genesis.time",
+          "genesis.efficacy",
+          "genesis.pressure"
+        ],
+        "source_refs": [
+          {
+            "file": "2022 ACC/AHA Guideline for the Diagnosis and Management of Aortic Disease",
+            "year": 2022,
+            "section": "Diagnostic evaluation of acute aortic syndromes, recommendation-specific supportive text on bedside TEE",
+            "url": "https://doi.org/10.1161/CIR.0000000000001106"
+          }
+        ],
+        "author_review": {
+          "revision": "2026-11-20 선택지 종류를 영상 검사로 통일하고 위험 암시 문구를 제거한 편집 정정. 독립 임상의 감수 전.",
+          "closest_competing_option": "D",
+          "discriminator": "승압제 증가에도 이송 시 혈압이 악화되고, 첫 TTE 영상 창은 불충분하며, 현장 TEE팀이 준비되어 있다.",
+          "counterfactual": "관류가 안정되고 바로 CT를 받을 수 있다면 전체 대동맥과 분지를 보는 CTA가 일반적 일차 선택이다."
+        }
+      },
+      "before_revision": "q-tk6enzy8c8",
+      "before_fields": {
+        "learning_objective": "v-5x3ypgerhs-1g",
+        "stem": "v-2b3d297baxv-41",
+        "question": "v-2eg46ibmbk4-n",
+        "options": "v-22jocil8kxc-5m",
+        "option_analysis": "v-rkjcdtd1iv-x9",
+        "causal_chain": "v-w20d37id6u-1g",
+        "takeaway": "v-1pvznccm82p-15",
+        "misconception_tags": "v-21s2mtscupg-4s",
+        "misconception_ids": "absent",
+        "source_refs": "v-1j4bal1o10j-bm",
+        "author_review": "v-iiqsur6yll-41"
+      }
+    },
+    {
+      "id": "GEN-CV9-20261107-09-08",
+      "revision": 2,
+      "reason": "벽내혈종에 연결되어 있던 고전적 박리의 검색어를 비조영·조영 CT 대조 자료로 교정합니다.",
+      "changes": {
+        "image_search_keywords": [
+          "aortic intramural hematoma unenhanced CT hyperattenuating crescent aortic wall contrast nonenhancing wall thickening"
+        ],
+        "option_analysis": {
+          "A": {
+            "verdict": "correct",
+            "why_best": "전형적 박리 flap이 없다는 이유로 급성 벽 질환을 배제하지 않는다.",
+            "correct_when": "상행 침범·합병증 여부로 치료를 구분한다.",
+            "KEY": "전형적 박리 flap이 없다는 이유로 급성 벽 질환을 배제하지 않는다.",
+            "HBM": "무번호 — 벽의 손상은 위치·압력·수축 impulse·분지 관류로 읽는다. 평균 혈압만 낮추는 것으로 끝나지 않는다.",
+            "reasoning_skeleton": "발병·경과 → 핵심 양성·음성 단서 → 경쟁 진단의 예측과 비교 → 가장 적게 가정하는 진단 → 위험·확인 검사",
+            "Textbook Floor": "대동맥 중막 내 혈액 축적 → 벽 비후·고음영 → 전형적 flap 없이도 acute aortic syndrome.\n이 증례의 선택: Intramural hematoma",
+            "적용 경계": "상행 침범·합병증 여부로 치료를 구분한다.",
+            "가장 강한 경쟁 선택지": "Penetrating atherosclerotic ulcer — 보통 죽상 plaque를 뚫고 벽으로 들어가는 국소 조영 crater가 핵심이다.",
+            "시각 학습": "비조영 CT에서 내강을 따라 초승달처럼 두꺼워진 고음영 대동맥 벽을 찾는다. 조영 CT에서는 같은 위치의 벽 비후가 조영되는지 확인한다. 비교용 영상은 RadioGraphics의 Natural History and CT Appearances of Aortic Intramural Hematoma, Figures 2–3에 있다. 본 문항은 서술형이므로 실제 영상 판독은 별도로 확인한다."
+          },
+          "B": {
+            "verdict": "incorrect",
+            "trap": "벽 밖 연부조직과 벽내 고음영 혈종의 차이가 있다.",
+            "correct_when": "후복막 섬유화·염증성 질환에서 고려한다.",
+            "misconception": "대동맥질환__벽 속 혈액__대동맥 주위 섬유화"
+          },
+          "C": {
+            "verdict": "incorrect",
+            "trap": "보통 죽상 plaque를 뚫고 벽으로 들어가는 국소 조영 crater가 핵심이다.",
+            "correct_when": "고령 죽상경화 환자의 국소 궤양 소견에서 진단한다.",
+            "misconception": "대동맥질환__벽 속 혈액__Penetrating atherosclerotic ulcer"
+          },
+          "D": {
+            "verdict": "incorrect",
+            "trap": "직경 확장 자체와 급성 벽내 출혈은 다른 소견이다.",
+            "correct_when": "확장 크기·성장·증상으로 위험을 평가한다.",
+            "misconception": "대동맥질환__벽 속 혈액__만성 안정 aneurysm"
+          },
+          "E": {
+            "verdict": "incorrect",
+            "trap": "내강 쪽 혈전과 비조영 CT의 급성 벽내 혈종 위치·성상을 구분한다.",
+            "correct_when": "만성 aneurysm 내 혈전에서 흔하다.",
+            "misconception": "대동맥질환__벽 속 혈액__단순 만성 mural thrombus"
+          }
+        },
+        "source_refs": [
+          {
+            "file": "2022 ACC/AHA Aortic Disease Guideline — original",
+            "section": "벽 속 혈액; https://doi.org/10.1161/CIR.0000000000001106",
+            "url": "https://doi.org/10.1161/CIR.0000000000001106",
+            "verification": "2026-11-07 Endoleak·EVAR 추적 및 벽 질환 원문 발췌 확인"
+          },
+          {
+            "file": "2022 ACC/AHA Aortic Disease Guideline — key perspectives part 2",
+            "section": "벽 속 혈액; https://www.acc.org/Latest-in-Cardiology/ten-points-to-remember/2022/11/01/12/21/2022-Guideline-on-Aortic-Disease-2-gl-ad",
+            "url": "https://www.acc.org/Latest-in-Cardiology/ten-points-to-remember/2022/11/01/12/21/2022-Guideline-on-Aortic-Disease-2-gl-ad",
+            "verification": "2026-11-07 AAS 약물·중재·크기·유전·추적 관련 학회 공식 요약 확인"
+          },
+          {
+            "file": "Natural History and CT Appearances of Aortic Intramural Hematoma (RadioGraphics)",
+            "section": "Figures 2–3, noncontrast and contrast-enhanced CT characteristics",
+            "url": "https://pubs.rsna.org/doi/10.1148/rg.293085122",
+            "year": 2009
+          }
+        ],
+        "author_review": {
+          "revision": "2026-11-20 IMH에 맞는 검색어·관찰점과 실제 영상 자료를 연결한 편집 정정. 독립 임상의 감수 전.",
+          "closest_competing_option": "C",
+          "discriminator": "보통 죽상 plaque를 뚫고 벽으로 들어가는 국소 조영 crater가 핵심이다.",
+          "counterfactual": "고령 죽상경화 환자의 국소 궤양 소견에서 진단한다."
+        }
+      },
+      "before_revision": "q-2aqtoy4ivx2",
+      "before_fields": {
+        "image_search_keywords": "v-1z66uno5xfe-1r",
+        "option_analysis": "v-1m2tupsvxnx-147",
+        "source_refs": "v-1tsrvyy16l3-i1",
+        "author_review": "v-1j3byt0ecmu-4r"
+      }
+    }
+  ]
+}

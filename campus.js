@@ -31,25 +31,217 @@ async function zipFiles(files){const encoder=new TextEncoder(),parts=[],director
 async function downloadPack(){const b=activeBlock(),e=activeExam();if(schoolBusy)return;schoolBusy=true;toast('선택한 원본 자료와 시험범위를 묶고 있어요.');try{const entries=[],sources=[];for(const[i,m]of selectedSources().entries()){const blob=await kvGet('asset:'+m.id);if(!(blob instanceof Blob))throw new Error(m.name+' 원본 파일이 없습니다. 파일 복원 후 다시 시도하세요.');const path='materials/'+String(i+1).padStart(2,'0')+'/'+m.name.replace(/[\\/]/g,'_');entries.push({name:path,blob});sources.push({...m,path,range:e.materials[m.id].range||'전체'});}entries.push({name:'출제_요청문.txt',blob:new Blob([schoolPrompt()],{type:'text/plain'})},{name:'manifest.json',blob:new Blob([JSON.stringify({schema:'genesis-study-pack',version:1,block:{id:b.id,title:b.title,semester:b.semester},exam:e,sources},null,2)],{type:'application/json'})});const zip=await zipFiles(entries);saveBlob(zip,(b.title+'_'+e.title).replace(/[\\/:*?"<>|]/g,'_')+'.zip');toast('자료 묶음을 내보냈어요. 압축을 풀어 사용하는 AI에 첨부하세요.');}catch(err){toast(err.message,'err');}finally{schoolBusy=false;}}
 const CLINICAL_DOMAINS={cpx:'CPX · 환자 진료',osce:'OSCE · 술기',communication:'환자 설명 · 인계'};
 function skillTemplate(type){if(type==='cpx')return ['도입: 소개·환자 확인·면담 목적 설명','응급성 및 주요 위험 신호 확인','가설을 구분하는 병력청취','적응증에 맞는 진찰 선택·설명','핵심 소견 요약과 감별 근거 제시','검사·치료 계획과 불확실성 설명','환자의 걱정 확인·마무리'];if(type==='communication')return ['핵심 상황과 판단을 먼저 전달','근거와 우선순위를 구분해 설명','불확실성과 다음 행동을 명시','상대방의 이해와 질문 확인'];return ['학교 평가표에서 준비·안전 항목 입력','학교 평가표에서 술기 수행 단계를 입력','학교 평가표에서 마무리·정리 항목 입력'];}
-function vSkills(){const skills=Object.values(campus().skills),now=Date.now(),due=skills.filter(s=>!s.due||s.due<=now),logs=skills.flatMap(s=>s.logs||[]);let h=pageHeading('실기 연습','알고 있는 것에서, 순서대로 수행할 수 있는 것으로.',`<button class="btn" data-campus="new-skill">${icon('plus')}연습 항목</button>`);
- h+=`<div class="campus-banner"><div class="system-icon">${icon('activity')}</div><div><strong>CPX · OSCE · 환자 설명</strong><p>학교 체크리스트로 연습하고, 빠뜨린 단계와 다음 복습일을 기록하세요. 자기평가 기록이며 공식 수행능력 인증은 아닙니다.</p></div></div><div class="metrics skills-metrics">${metric(skills.length,'연습 항목','직접 만든 체크리스트','layers')}${metric(due.length,'복습할 항목','미연습 또는 복습일 도달','repeat')}${metric(logs.length,'수행 기록','근거와 관찰을 함께 기록','check')}</div>`;
- if(!skills.length)return h+`<div class="card empty"><div class="empty-icon">${icon('activity')}</div><h2>학교의 평가표를 나의 연습 루틴으로.</h2><p>술기 이름과 체크리스트를 등록하고 단계별로 점검하세요.<br>CPX 기본 틀 또는 빈 OSCE 틀에서 시작할 수 있습니다.</p><div class="actions" style="justify-content:center"><button class="btn pri" data-campus="new-skill">첫 연습 항목 만들기</button></div></div>`;
- if(!selectedSkill||!campus().skills[selectedSkill])selectedSkill=skills[0].id;const s=campus().skills[selectedSkill],last=(s.logs||[]).slice(-3).reverse(),draft=s.draft||{checks:[],notes:''};
- h+=`<div class="skills-layout"><div class="skill-menu">${skills.map(x=>`<button class="skill-item ${x.id===s.id?'active':''}" data-campus="select-skill" data-id="${esc(x.id)}"><strong>${esc(x.title)}</strong><small>${esc(CLINICAL_DOMAINS[x.type])} · ${!x.due||x.due<=now?'복습할 때':'다음 '+dstr(x.due)}</small></button>`).join('')}</div><section><div class="card"><div class="section-title"><div><div class="eyebrow">${esc(CLINICAL_DOMAINS[s.type])}</div><h2>${esc(s.title)}</h2></div><button class="btn ghost sm" data-campus="edit-skill">체크리스트 편집</button></div>${s.type==='osce'&&s.isTemplate?'<div class="banner info">이 틀에는 실제 술기 수행법이 들어 있지 않습니다. 학교 평가표로 단계를 작성한 뒤 연습하세요.</div>':''}<p class="mut" style="font-size:12px">출처: ${esc(s.source||'미등록 · 학교 평가표/공식 교육자료를 기록하세요.')}</p><div class="checklist">${s.steps.map((step,i)=>`<label><input type="checkbox" data-skill-step="${i}" ${draft.checks?.includes(i)?'checked':''}><span><small>${String(i+1).padStart(2,'0')}</small>${esc(step)}</span></label>`).join('')}</div><label class="field">이번에 놓친 점 · 관찰받은 피드백<textarea id="skill-observation" rows="3" maxlength="5000" placeholder="누락한 단계, 이유, 다음 연습에서 바꿀 행동">${esc(draft.notes||'')}</textarea></label><div class="row"><label class="field">이번 연습의 방식<select id="skill-evidence"><option value="self">혼자 회상·시뮬레이션</option><option value="peer">동료와 연습</option><option value="supervised">지도하 관찰·피드백</option></select></label><label class="field">다음 복습<select id="skill-interval"><option value="1">내일</option><option value="3">3일 뒤</option><option value="7">7일 뒤</option><option value="14">14일 뒤</option></select></label></div><div class="actions"><button class="btn pri" data-campus="record-skill" ${s.isTemplate&&s.type==='osce'?'disabled':''}>수행 기록 저장</button><button class="btn" data-campus="skill-prompt">${icon('copy')}역할극 요청문 복사</button></div></div><div class="card"><h2>최근 수행 기록</h2>${last.length?last.map(l=>`<div class="skill-log"><span class="bdg">${dstr(l.ts)}</span> <strong>${l.checked}/${l.total}단계</strong><span class="mut"> · ${{self:'혼자 연습',peer:'동료 연습',supervised:'지도하 피드백'}[l.evidence]}</span><p>${esc(l.notes||'피드백 기록 없음')}</p>${l.missed.length?`<small class="mut">다시 볼 단계: ${l.missed.map(esc).join(' / ')}</small>`:''}</div>`).join(''):'<p class="mut" style="font-size:12px">첫 연습 뒤 결과와 놓친 단계를 확인할 수 있어요.</p>'}</div></section></div>`;return h;
+const SKILL_STARTERS = {
+  "chest-pain": {
+    "title": "흉통 환자의 첫 면담",
+    "type": "cpx",
+    "source": "NICE CG95 §1.2 · 급성 흉통 초진. Genesis 모의 면담용으로 재구성",
+    "url": "https://www.nice.org.uk/guidance/cg95",
+    "scenario": "외래에서 56세 환자가 “계단에서 가슴이 조였어요”라고 말한다. 첫 질문을 하고 면담을 이어가세요.",
+    "partner": "물어보면 답하세요. 통증이 20분째 지속되고 쉬어도 가라앉지 않으며 식은땀이 납니다. 위험성을 알아채면 즉시 도움을 요청하는지, 그 이유를 이해할 수 있게 말하는지 관찰하세요.",
+    "steps": [
+      "환자에게 자신을 소개하고 가장 걱정되는 증상을 듣는다.",
+      "현재도 아픈지, 언제 시작했고 어떻게 변했는지 묻는다.",
+      "통증의 성격·부위·방사와 식은땀·호흡곤란 등 동반 증상을 확인한다.",
+      "! 진행 중인 위험 증상을 알아차리고 면담을 멈춰 활력징후 확인과 즉각적인 도움을 요청한다.",
+      "환자에게 응급 평가가 필요한 이유를 쉬운 말로 설명한다."
+    ]
+  },
+  "hand-rub": {
+    "title": "손소독제 사용을 직접 관찰하기",
+    "type": "osce",
+    "source": "WHO · How to handrub? (2009), 손위생 교육 포스터",
+    "url": "https://www.who.int/teams/integrated-health-services/infection-prevention-control/hand-hygiene/training-tools",
+    "scenario": "실습실에서 손에 눈에 보이는 오염이 없는 상황을 가정합니다. 손소독제를 사용하고 동료가 도포 범위와 건조까지 관찰합니다.",
+    "steps": [
+      "눈에 보이는 오염 여부를 확인하고 이 상황에 적절한 손위생 방법을 선택한다.",
+      "양손의 모든 표면을 적실 만큼 손소독제를 덜어 손바닥을 문지른다.",
+      "양쪽 손등, 손가락 사이와 손가락 뒷면에 닿도록 문지른다.",
+      "양쪽 엄지와 손가락 끝·손톱 주변을 반대 손바닥에 문지른다.",
+      "! 전체 동작을 약 20–30초 시행하고 마를 때까지 문지른다."
+    ]
+  },
+  "sbar": {
+    "title": "악화한 환자에 대해 전화 보고하기",
+    "type": "communication",
+    "source": "AHRQ TeamSTEPPS 3.0 · Tool: SBAR, Genesis 모의 인계",
+    "url": "https://www.ahrq.gov/teamstepps-program/curriculum/communication/tools/sbar.html",
+    "scenario": "가상 환자의 시술 후 혈압이 128/76에서 84/58로 떨어지고 식은땀이 난다. 상급자에게 지금 필요한 도움을 요청하세요.",
+    "steps": [
+      "현재 상태와 긴급성을 첫 문장에 전달한다.",
+      "시술 직후라는 배경과 활력징후의 변화를 전달한다.",
+      "직접 확인한 소견과 의심하는 원인을 구분한다.",
+      "! 즉시 필요한 지원을 구체적으로 요청하고 상대방의 응답을 확인한다."
+    ]
+  }
+};
+const SKILL_EVIDENCE={self:"혼자 연습",peer:"동료가 직접 관찰",supervised:"지도자가 직접 관찰"};
+const SKILL_ASSISTANCE={independent:"참여자 도움 없이 수행",verbal:"말로 단서 제공",hands:"동작을 직접 도와줌",stopped:"중단 또는 시범으로 전환"};
+
+function newSkillDraft(){return {checks:[],notes:'',evidence:'self',setting:'simulation',assistance:'',remediation:'',interval:'1',followup:false};}
+
+function skillRubricError(s){
+  const steps = Array.isArray(s.steps) ? s.steps : [];
+  if (!steps.length || steps.some(step=>typeof step!=='string'||!step.replace(/^!\s*/,'').trim())) return '체크리스트에 실제로 관찰할 행동을 입력하세요.';
+  if (s.type==='osce') {
+    if (!String(s.source||'').trim()) return '술기 교육자료 이름이나 학교 평가표 출처를 입력하세요.';
+    if (steps.some(step=>skillTemplate('osce').includes(step.trim()))) return 'OSCE 틀의 안내 문구를 실제 수행 단계로 바꾸세요.';
+  }
+  return '';
+}
+
+function skillLogKey(log){
+  if (log.id) return String(log.id);
+  // Old records have no ID. Equal timestamps alone do not identify the same practice.
+  return 'legacy:'+JSON.stringify([log.ts,log.checked,log.total,log.missed||[],log.notes||'',log.evidence||'']);
+}
+
+function mergeSkillRecords(local,incoming){
+  const newer = !local || (incoming.updatedAt||0)>(local.updatedAt||0) ? incoming : local;
+  const records = new Map();
+  for (const history of [local?.logs,incoming.logs]) {
+    const occurrences=new Map();
+    for (const log of Array.isArray(history)?history:[]) {
+      if (!log||typeof log!=='object') continue;
+      const key=skillLogKey(log),count=occurrences.get(key)||0;
+      occurrences.set(key,count+1);
+      records.set(log.id?key:JSON.stringify([key,count]),log);
+    }
+  }
+  const logs = [...records.values()].sort((a,b)=>a.ts-b.ts || skillLogKey(a).localeCompare(skillLogKey(b)));
+  const latest = logs[logs.length-1];
+  const latestSource=[newer,local,incoming].find(s=>latest&&s?.logs?.some(l=>skillLogKey(l)===skillLogKey(latest)));
+  return {...newer, logs, due:latest?.nextDue ?? latestSource?.due ?? newer.due};
+}
+
+function addSkillStarter(key){
+  const example = SKILL_STARTERS[key];
+  if (!example) return;
+  const id='SKILL-STARTER-'+key;
+  const skills=campus().skills;
+  if (!skills[id]) {
+    const {url,...spec}=example;
+    skills[id]={id,...spec,steps:[...spec.steps],sourceUrl:url,logs:[],createdAt:Date.now(),updatedAt:Date.now()};
+  }
+  selectedSkill=id;
+  persistWorkspace();
+  render();
+}
+
+function skillPracticeResult(s,draft){
+  const rubricProblem=skillRubricError(s);
+  if (rubricProblem) return {error:rubricProblem};
+  const evidence=Object.hasOwn(SKILL_EVIDENCE,draft.evidence)?draft.evidence:'self';
+  const observed=evidence!=='self';
+  const setting=evidence==='supervised'&&draft.setting==='clinical'?'clinical':'simulation';
+  const notes=String(draft.notes||'').trim(), remediation=String(draft.remediation||'').trim();
+  if (observed&&(!notes||!Object.hasOwn(SKILL_ASSISTANCE,draft.assistance))) return {error:'관찰한 행동 한 가지와 실제 도움 수준을 기록하세요.'};
+  const checked=new Set((draft.checks||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<s.steps.length));
+  if (!checked.size&&!notes&&!remediation) return {error:'실제로 연습한 단계를 체크하거나 관찰한 내용을 기록하세요.'};
+  const missed=s.steps.filter((_,i)=>!checked.has(i));
+  const critical=missed.filter(step=>/^!\s/.test(step));
+  if (observed&&(critical.length||draft.assistance!=='independent')&&!remediation) return {error:'다음 관찰에서 다시 확인할 행동을 한 가지 적으세요.'};
+  const ts=Date.now(),days=[1,3,7,14].includes(Number(draft.interval))?Number(draft.interval):1;
+  const previous=(s.logs||[]).at(-1);
+  return {log:{id:uid('PRACTICE'),ts,checked:checked.size,total:s.steps.length,missed,notes,evidence,setting,
+    assistance:observed?draft.assistance:'',critical,remediation,followupOf:draft.followup&&previous?skillLogKey(previous):null,
+    rubric:{source:s.source||'',steps:[...s.steps]},nextDue:ts+days*DAY}};
+}
+
+function skillLogView(log){
+  const mode=log.id?SKILL_EVIDENCE[log.evidence]:({self:'혼자 연습',peer:'동료와 연습',supervised:'지도하 연습'})[log.evidence];
+  const help=SKILL_ASSISTANCE[log.assistance];
+  return `<div class="skill-log"><span class="bdg">${esc(dstr(log.ts))}</span> <strong>${esc(log.checked)}/${esc(log.total)}단계</strong>
+    <span class="mut"> · ${esc(mode||'방식 미기록')}${log.setting?' · '+(log.setting==='clinical'?'임상 실습':'모의 실습'):''}${help?' · '+esc(help):''}</span>
+    ${log.followupOf?'<p>이전 연습에 이어 재평가</p>':''}
+    ${log.evidence!=='self'&&!help?'<p>과거 기록 · 관찰 수준 미기록</p>':''}
+    <p>${esc(log.notes||'피드백 기록 없음')}</p>
+    ${log.missed?.length?`<p>체크하지 않은 단계 · ${log.missed.map(esc).join(' / ')}</p>`:''}
+    ${log.remediation?`<p>다음에 확인할 행동 · ${esc(log.remediation)}</p>`:''}
+    ${log.rubric?`<details><summary>사용한 평가표</summary><p>${esc(log.rubric.source||'자기연습용')}</p><ol>${log.rubric.steps.map(step=>`<li>${esc(step)}</li>`).join('')}</ol></details>`:''}</div>`;
+}
+
+function skillStartersView(){
+  return `<div class="card"><h2>실습 예시</h2><div class="actions">${Object.entries(SKILL_STARTERS).map(([key,s])=>`<button class="btn" data-campus="skill-starter" data-id="${esc(key)}">${esc(s.title)}</button>`).join('')}</div></div>`;
+}
+
+function practiceOptions(labels,current,empty){
+  const lead=empty?'<option value="">선택하세요</option>':'';
+  return lead+Object.entries(labels).map(([v,label])=>`<option value="${esc(v)}" ${v===String(current)?'selected':''}>${esc(label)}</option>`).join('');
+}
+
+function vSkills(){
+  const skills=Object.values(campus().skills),now=Date.now();
+  const due=skills.filter(s=>!s.due||s.due<=now),logs=skills.flatMap(s=>s.logs||[]);
+  let h=pageHeading('실기 연습','',`<button class="btn" data-campus="new-skill">${icon('plus')}연습 항목</button>`);
+  h+=`<div class="metrics skills-metrics">${metric(skills.length,'연습 항목','체크리스트','layers')}${metric(due.length,'복습할 항목','미연습 또는 복습일 도달','repeat')}${metric(logs.length,'연습 기록','자기 기록 및 관찰 피드백','check')}</div>`;
+  if (!skills.length) return h+skillStartersView()+`<div class="card"><button class="btn" data-campus="new-skill">학교 평가표로 새 항목 만들기</button></div>`;
+  if (!campus().skills[selectedSkill]) selectedSkill=skills[0].id;
+  const s=campus().skills[selectedSkill],draft={...newSkillDraft(),...s.draft},observed=draft.evidence!=='self';
+  const history=[...(s.logs||[])].reverse(),previous=history[0],rubricProblem=skillRubricError(s);
+  const rubricUrl=s.sourceUrl&&/^https?:\/\//i.test(s.sourceUrl)?` · <a href="${esc(s.sourceUrl)}" target="_blank" rel="noopener noreferrer">교육자료 열기</a>`:'';
+  h+=`<div class="skills-layout"><div class="skill-menu">${skills.map(item=>`<button class="skill-item ${item.id===s.id?'active':''}" data-campus="select-skill" data-id="${esc(item.id)}"><strong>${esc(item.title)}</strong><small>${esc(CLINICAL_DOMAINS[item.type])} · ${!item.due||item.due<=now?'복습할 때':'다음 '+dstr(item.due)}</small></button>`).join('')}</div>
+  <section><div class="card"><div class="section-title"><div><div class="eyebrow">${esc(CLINICAL_DOMAINS[s.type])}</div><h2>${esc(s.title)}</h2></div><button class="btn ghost sm" data-campus="edit-skill">체크리스트 편집</button></div>
+  ${s.scenario?`<p>${esc(s.scenario)}</p>`:''}${s.partner?`<details><summary>상대역 지침</summary><p>${esc(s.partner)}</p></details>`:''}
+  <p class="mut">출처 · ${esc(s.source||'미등록')}${rubricUrl}</p>${rubricProblem?`<p class="banner info">${esc(rubricProblem)}</p>`:''}
+  <div class="checklist">${(s.steps||[]).map((step,i)=>`<label><input type="checkbox" data-skill-step="${i}" ${draft.checks.includes(i)?'checked':''}><span><small>${String(i+1).padStart(2,'0')}</small>${/^!\s/.test(step)?'<strong>안전 필수 · </strong>':''}${esc(step.replace(/^!\s+/,''))}</span></label>`).join('')}</div>
+  <label class="field">연습 방식<select id="skill-evidence" data-practice="evidence">${practiceOptions(SKILL_EVIDENCE,draft.evidence)}</select></label>
+  ${draft.evidence==='supervised'?`<label class="field">관찰 환경<select data-practice="setting">${practiceOptions({simulation:'모의 실습',clinical:'지도하 임상 실습'},draft.setting)}</select></label>`:''}
+  ${observed?`<label class="field">관찰자가 수행 중 제공한 도움<select id="skill-assistance" data-practice="assistance">${practiceOptions(SKILL_ASSISTANCE,draft.assistance,true)}</select></label>`:''}
+  <label class="field">${observed?'직접 본 행동과 관찰 피드백':'자기연습 메모'}<textarea id="skill-observation" data-practice="notes" rows="2" maxlength="3000" placeholder="실명이나 환자 식별정보 없이 행동만 기록">${esc(draft.notes)}</textarea></label>
+  <label class="field">다음에 다시 확인할 행동<textarea id="skill-remediation" data-practice="remediation" rows="2" maxlength="1000">${esc(draft.remediation)}</textarea></label>
+  ${previous?`<label><input type="checkbox" data-practice="followup" ${draft.followup?'checked':''}> 지난 연습에 이어 재평가${previous.remediation?' · '+esc(previous.remediation):''}</label>`:''}
+  <label class="field">다음 복습<select id="skill-interval" data-practice="interval">${practiceOptions({1:'내일',3:'3일 뒤',7:'7일 뒤',14:'14일 뒤'},draft.interval)}</select></label>
+  <p class="hint mut">관찰 피드백은 학습자가 기록합니다. 독립 수행 승인은 지도자의 평가 절차를 따르세요.</p>
+  <div class="actions"><button class="btn pri" data-campus="record-skill" ${rubricProblem?'disabled':''}>수행 기록 저장</button><button class="btn" data-campus="skill-prompt">${icon('copy')}역할극 요청문 복사</button></div></div>
+  <div class="card"><h2>수행 기록</h2>${history.length?history.slice(0,3).map(skillLogView).join(''):'<p>첫 연습을 기록하세요.</p>'}${history.length>3?`<details><summary>이전 기록 ${history.length-3}건</summary>${history.slice(3).map(skillLogView).join('')}</details>`:''}</div></section></div>`;
+  return h+skillStartersView();
+}
+
+function savePracticeDraft(target){
+  const s=campus().skills[selectedSkill],key=target.dataset.practice;
+  if (!s||!['evidence','setting','assistance','notes','remediation','interval','followup'].includes(key)) return;
+  const draft=s.draft||(s.draft=newSkillDraft());
+  draft[key]=target.type==='checkbox'?target.checked:target.value;
+  s.updatedAt=Date.now(); persistWorkspace();
+}
+
+async function recordSkillPractice(){
+  const s=campus().skills[selectedSkill]; if (!s) return;
+  const result=skillPracticeResult(s,{...newSkillDraft(),...s.draft});
+  if (result.error) {toast(result.error,'err'); return;}
+  (s.logs||(s.logs=[])).push(result.log);
+  s.due=result.log.nextDue;s.draft=newSkillDraft();s.updatedAt=result.log.ts;
+  render();
+  await persistWorkspace();
+  toast('연습 기록을 저장했어요.');
 }
 function newSkill(){const title=prompt('연습할 항목 (예: 복통 문진, 봉합, 심폐소생술)');if(!title?.trim())return;const raw=prompt('분류: CPX, OSCE, 설명 중 하나를 입력하세요.','CPX');if(raw===null)return;const type=/osce|술기/i.test(raw)?'osce':/설명|인계/.test(raw)?'communication':'cpx',id=uid('SKILL');campus().skills[id]={id,title:title.trim(),type,steps:skillTemplate(type),source:'',isTemplate:true,logs:[],createdAt:Date.now(),updatedAt:Date.now()};selectedSkill=id;persistWorkspace();render();}
-function showEditor(type){const b=activeBlock(),s=campus().skills[selectedSkill];const el=document.createElement('dialog');el.className='campus-dialog';el.innerHTML=type==='block'?`<form method="dialog"><h2>블록 정보</h2><label class="field">블록 이름<input name="title" value="${esc(b.title)}" required></label><label class="field">학기<input name="semester" value="${esc(b.semester)}"></label><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`:`<form method="dialog"><h2>체크리스트 편집</h2><label class="field">항목 이름<input name="title" value="${esc(s.title)}" required></label><label class="field">평가표·교육자료 출처<input name="source" value="${esc(s.source||'')}" placeholder="예: 학교 OSCE 평가표 2027, p.12"></label><label class="field">단계 (한 줄에 하나)<textarea name="steps" rows="12" required>${esc(s.steps.join('\n'))}</textarea></label><p class="hint mut">실제 술기는 공식 교육자료와 지도자의 감독 아래 연습하세요.</p><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`;document.body.appendChild(el);el.addEventListener('close',()=>{if(el.returnValue==='save'){const f=new FormData(el.querySelector('form'));if(type==='block'){b.title=String(f.get('title')).trim();b.semester=String(f.get('semester')).trim();b.updatedAt=Date.now();}else{s.title=String(f.get('title')).trim();s.source=String(f.get('source')).trim();s.steps=String(f.get('steps')).split('\n').map(x=>x.trim()).filter(Boolean);s.draft={checks:[],notes:''};s.isTemplate=false;s.updatedAt=Date.now();}persistWorkspace();render();}el.remove();});el.showModal();}
+function showEditor(type){const b=activeBlock(),s=campus().skills[selectedSkill];const el=document.createElement('dialog');el.className='campus-dialog';el.innerHTML=type==='block'?`<form method="dialog"><h2>블록 정보</h2><label class="field">블록 이름<input name="title" value="${esc(b.title)}" required></label><label class="field">학기<input name="semester" value="${esc(b.semester)}"></label><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`:`<form method="dialog"><h2>체크리스트 편집</h2><label class="field">항목 이름<input name="title" value="${esc(s.title)}" required></label><label class="field">평가표·교육자료 출처<input name="source" value="${esc(s.source||'')}" placeholder="예: 학교 OSCE 평가표 2027, p.12"></label><label class="field">관찰할 행동 (한 줄에 하나, 안전 필수 단계는 ! 로 시작)<textarea name="steps" rows="12" required>${esc(s.steps.join('\n'))}</textarea></label><p class="hint mut">실제 술기는 공식 교육자료와 지도자의 감독 아래 연습하세요.</p><div class="actions"><button class="btn pri" value="save">저장</button><button class="btn ghost" value="cancel" formnovalidate>취소</button></div></form>`;document.body.appendChild(el);el.addEventListener('close',()=>{if(el.returnValue==='save'){const f=new FormData(el.querySelector('form'));if(type==='block'){b.title=String(f.get('title')).trim();b.semester=String(f.get('semester')).trim();b.updatedAt=Date.now();}else{s.title=String(f.get('title')).trim();const source=String(f.get('source')).trim();if(s.source!==source)delete s.sourceUrl;s.source=source;s.steps=String(f.get('steps')).split('\n').map(x=>x.trim()).filter(Boolean);s.draft={checks:[],notes:''};s.isTemplate=false;s.updatedAt=Date.now();}persistWorkspace();render();}el.remove();});el.showModal();}
 const baseCampusLoad=loadLocal;
 loadLocal=async function(){await baseCampusLoad();if(session?.ids.some(id=>S.bank[id]?.block_id&&!S.bank[id].school_verified)){session=null;workspace().resume=null;await persistWorkspace();}for(const b of Object.values(campus().blocks)){for(const m of b.materials||[]){const file=await kvGet('asset:'+m.id);assetAvailability.set(m.id,file instanceof Blob);}}};
 const baseCampusMerge=mergeBackup;
-mergeBackup=function(b){const result=baseCampusMerge(b),w=campus(),incoming=b.meta?.workspace;for(const key of ['blocks','skills'])for(const[id,v]of Object.entries(incoming?.[key]||{}))if(!w[key][id]||(v.updatedAt||0)>(w[key][id].updatedAt||0))w[key][id]=v;return result;};
+mergeBackup=function(b){
+  const result=baseCampusMerge(b),w=campus(),incoming=b.meta?.workspace;
+  for (const [id,block] of Object.entries(incoming?.blocks||{})) {
+    if (!w.blocks[id]||(block.updatedAt||0)>(w.blocks[id].updatedAt||0)) w.blocks[id]=block;
+  }
+  for (const [id,skill] of Object.entries(incoming?.skills||{})) {
+    if (skill&&typeof skill==='object') w.skills[id]=mergeSkillRecords(w.skills[id],skill);
+  }
+  return result;
+};
 const baseCampusPool=pool;
 pool=function(f=setup){return baseCampusPool(f).filter(id=>!S.bank[id].block_id||!!S.bank[id].school_verified);};
 const baseCampusStart=startSession;
 startSession=function(ids,recallFirst=false){return baseCampusStart(ids.filter(id=>!S.bank[id]?.block_id||S.bank[id].school_verified),recallFirst);};
 function saveExamInput(t){const b=activeBlock(),e=activeExam();if(!b||!e)return;if(t.dataset.exam)e[t.dataset.exam]=t.value;if(t.dataset.material){const m=e.materials[t.dataset.id]||(e.materials[t.dataset.id]={selected:false,range:''});m[t.dataset.material]=t.type==='checkbox'?t.checked:t.value;}if(t.id==='school-count')e.count=Math.max(1,Math.min(30,Number(t.value)||10));if(t.id==='school-style')e.style=t.value;b.updatedAt=Date.now();persistWorkspace();}
-document.addEventListener('input',e=>{const t=e.target;if(t.dataset.exam||t.dataset.material||t.id==='school-count')saveExamInput(t);if(t.id==='skill-observation'){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.notes=t.value;s.updatedAt=Date.now();persistWorkspace();}});
-document.addEventListener('change',async e=>{const t=e.target;if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.dataset.exam||t.dataset.material||t.id==='school-count')saveExamInput(t);
+  if(t.dataset.practice&&t.tagName==='TEXTAREA')savePracticeDraft(t);
+});
+document.addEventListener('change',async e=>{const t=e.target;if(t.dataset.practice){savePracticeDraft(t);if(t.dataset.practice==='evidence')render();return;}if(t.id==='campus-files'){await addMaterials([...t.files]);return;}if(t.dataset.restore){await addMaterials([...t.files],t.dataset.restore);return;}if(t.id==='exam-select'){selectedExam=t.value;render();return;}if(t.dataset.material||t.dataset.exam||t.id==='school-style'){saveExamInput(t);if(t.type==='checkbox')render();}if(t.dataset.skillStep!=null){const s=campus().skills[selectedSkill];s.draft=s.draft||{checks:[],notes:''};s.draft.checks=[...app.querySelectorAll('[data-skill-step]:checked')].map(x=>+x.dataset.skillStep);s.updatedAt=Date.now();persistWorkspace();}});
 document.addEventListener('click',async e=>{const btn=e.target.closest('[data-campus]');if(!btn)return;const b=activeBlock(),ex=activeExam(),id=btn.dataset.id;switch(btn.dataset.campus){
  case'new-block':newBlock();break;
  case'select-block':selectedBlock=id;selectedExam='';render();break;
@@ -59,12 +251,26 @@ document.addEventListener('click',async e=>{const btn=e.target.closest('[data-ca
  case'copy-prompt':await copy(schoolPrompt());break;
  case'download-pack':await downloadPack();break;
  case'import-questions':{try{const text=$('#school-import').value;if(!text.trim()){toast('AI가 반환한 JSON을 붙여넣으세요.');break;}const parsed=parseInput(text),raw=parsed.flatMap(x=>extractItems(x).items);if(!raw.length)throw new Error('items 배열에서 문항을 찾지 못했습니다.');const items=raw.map(q=>({...q,id:ex.id+'-'+makeId(normalizeItem(q)),block_id:b.id,exam_id:ex.id,school_verified:false,needs_review:true}));ex.source_reports=parsed.map(x=>x.batch_meta).filter(Boolean);b.updatedAt=Date.now();persistWorkspace();const rep=ingestData([{items}],'school:'+b.id+'/'+ex.id);await saveAll();render();$('#school-report').innerHTML=reportHTML(rep);toast('현재 시험에 문항을 가져왔어요. 원문 근거를 먼저 확인하세요.');}catch(err){$('#school-report').innerHTML=`<div class="banner bad">${esc(err.message)}</div>`;}break;}
- case'verify-question':{const q=S.bank[id];q.school_verified=!q.school_verified;q.needs_review=!q.school_verified;q.school_verified_at=q.school_verified?Date.now():null;await save('bank');render();break;}
+ case'verify-question':{
+    const q=S.bank[id];
+    if(!q||q.block_id!==b?.id||q.exam_id!==ex?.id)break;
+    if(q.school_verified){
+      q.school_verified=false;q.needs_review=true;q.school_verified_at=null;
+      delete q._schoolVerifiedRevision;
+    }else{
+      const missing=missingQualityEvidence(q);
+      if(missing.length){toast('검토에 필요한 내용 · '+missing.join(' / '),'err');break;}
+      q.school_verified=true;q.needs_review=false;q.school_verified_at=Date.now();
+      q._schoolVerifiedRevision=itemRevision(q);
+    }
+    await save('bank');render();break;
+ }
  case'study-exam':startSession(schoolItems(b.id,ex.id).filter(q=>q.school_verified&&!S.flags[q.id]).map(q=>q.id));break;
  case'new-skill':newSkill();break;
  case'select-skill':selectedSkill=id;render();break;
  case'edit-skill':showEditor('skill');break;
- case'record-skill':{const s=campus().skills[selectedSkill],draft=s.draft||{checks:[],notes:''};if(!s.steps.length){toast('학교 평가표로 체크리스트를 먼저 작성하세요.','err');break;}const evidence=$('#skill-evidence').value,days=Number($('#skill-interval').value);s.logs.push({ts:Date.now(),checked:draft.checks.length,total:s.steps.length,missed:s.steps.filter((_,i)=>!draft.checks.includes(i)),notes:draft.notes,evidence});s.due=Date.now()+days*DAY;s.draft={checks:[],notes:''};s.updatedAt=Date.now();await persistWorkspace();render();toast('수행 기록과 다음 복습일을 저장했어요.');break;}
+ case'skill-starter':addSkillStarter(id);break;
+ case'record-skill':await recordSkillPractice();break;
  case'skill-prompt':{const s=campus().skills[selectedSkill];await copy(`의과대학 실기 연습: ${s.title}\n유형: ${CLINICAL_DOMAINS[s.type]}\n평가표 출처: ${s.source||'사용자 확인 필요'}\n체크리스트:\n${s.steps.map((v,i)=>`${i+1}. ${v}`).join('\n')}\n\nCPX라면 표준화 환자 역할로 시작하고 내가 묻는 정보만 단계적으로 답해 주세요. 술기라면 각 단계의 목적·안전 확인·누락을 구두로 점검해 주세요. 실제 손동작을 관찰하지 않았으므로 수행 숙련도를 인증하지 마세요. 평가표 밖의 상세 술기나 의학적 주장은 공식 자료로 확인하고 불확실성을 표시하세요. 내가 시작하기 전 정답과 체크리스트를 미리 설명하지 마세요.`);break;}
 }});
 

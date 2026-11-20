@@ -1,0 +1,1071 @@
+{
+  "schema_version": "2.0",
+  "batch_meta": {
+    "batch_id": "GEN-PILOT-CV-20261120",
+    "created_at": "2026-11-20",
+    "item_count": 10,
+    "language": "ko-KR",
+    "notes": "새로 작성한 가상 임상증례. 4개 학습목표마다 기본 문항과 미노출 전이 문항을 연결한다. 2개 목표에는 7일·30일 변형이 각각 있다. 저자 도구가 인용 자료를 대조한 편집본이며 독립 임상의 감수나 실제 시험 난도 보정은 이루어지지 않았다.",
+    "independent_clinical_review": false
+  },
+  "items": [
+    {
+      "id": "GEN-PILOT-CV-20261120-01",
+      "revision": 1,
+      "objective_id": "genesis.cv.pericardial_effusion_triage",
+      "variant_role": "index",
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심막질환",
+      "topic": "회복실의 혈압 저하",
+      "learning_objective": "심낭액 발견 후 관류와 발생 경과, 원인을 이용해 배액 시점을 결정한다.",
+      "question_type": "next_best_step",
+      "stem": "심박동기 심실 전극을 교체한 72세 여성이 회복실에서 갑자기 식은땀을 흘린다. 혈압은 128/76에서 76/50 mmHg로 떨어졌고 목정맥이 차오른다. 양쪽 폐의 호흡음은 대칭이다. 모니터에는 심실 포획이 유지된다. 침상 초음파에서 시술 직전까지 보이지 않던 12 mm의 심낭액, 이완기 우심실 자유벽 함몰이 확인된다. 소량 수액을 투여하는 동안 혈압은 78/48 mmHg다. 심장 시술팀이 곁에 있다.",
+      "question": "지금 시술팀과 가장 먼저 추진할 처치는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "응급 관상동맥 조영술"
+        },
+        {
+          "label": "B",
+          "text": "영상 유도 긴급 심낭 배액"
+        },
+        {
+          "label": "C",
+          "text": "흉부 CT 후 전극 재배치"
+        },
+        {
+          "label": "D",
+          "text": "임시 경정맥 심박조율"
+        },
+        {
+          "label": "E",
+          "text": "중심정맥로로 수액 추가 투여"
+        }
+      ],
+      "answer": "B",
+      "causal_chain": [
+        "급속한 심낭 내 출혈로 심낭압이 오른다.",
+        "이완기 우심실 충만이 제한되고 일회박출량이 감소한다.",
+        "새 저혈압과 정맥압 상승이 동반되면 소량의 심낭액도 즉시 처치한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "관상동맥 폐색도 저혈압을 일으킬 수 있지만 새 심낭액과 우심실 함몰이 시술 직후 동시에 생겼다.",
+          "correct_when": "새 국소 ST 상승과 국소 벽운동 이상이 허혈을 가리킬 때 고려한다.",
+          "misconception_id": "genesis.cause",
+          "misconception": "원인에 따른 처치 차이를 놓침"
+        },
+        "B": {
+          "verdict": "correct",
+          "why_best": "혈역학적으로 불안정한 급성 심장압전이다. 배액팀과 외과적 백업을 즉시 소집하고 전극 천공의 교정도 함께 준비한다.",
+          "correct_when": "불안정한 압전이며 접근 가능할 때 우선한다. 지속 출혈이나 경피 접근이 어려우면 수술적 조절이 필요할 수 있다."
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "천공 위치 규명에 도움이 되지만, 현재는 이송 중 추가 관류 저하 가능성이 크다.",
+          "correct_when": "혈역학적으로 안정되어 전극 위치를 확인할 시간이 있을 때 선택한다.",
+          "misconception_id": "genesis.time",
+          "misconception": "결정적 처치를 검사 뒤로 미룸"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "포획이 확인되어 수축 빈도 소실이 급격한 순환부전의 주원인이라는 근거가 약하다.",
+          "correct_when": "불안정한 서맥과 포획 소실이 보이면 조율 지원이 우선할 수 있다.",
+          "misconception_id": "genesis.cause",
+          "misconception": "원인에 따른 처치 차이를 놓침"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "수액은 배액을 준비하는 동안 관류를 잠시 보조할 수 있지만 이미 반응이 부족하다.",
+          "correct_when": "상대적 저혈량을 동반한 압전에서 결정적 처치 전의 짧은 지지요법으로 쓸 수 있다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        }
+      },
+      "takeaway": "새 삼출의 두께와 함께 발생 속도, 관류, 우심실의 이완기 함몰을 읽는다.",
+      "misconception_tags": [
+        "원인에 따른 처치 차이를 놓침",
+        "결정적 처치를 검사 뒤로 미룸",
+        "관류와 충만압을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.cause",
+        "genesis.time",
+        "genesis.pressure"
+      ],
+      "source_refs": [
+        {
+          "file": "2025 ESC Guidelines for the management of myocarditis and pericarditis",
+          "year": 2025,
+          "url": "https://doi.org/10.1093/eurheartj/ehaf192",
+          "section": "§11.8 Cardiac tamponade, diagnosis and therapy"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-02",
+      "revision": 1,
+      "objective_id": "genesis.cv.pericardial_effusion_triage",
+      "variant_role": "transfer",
+      "transfer_days": 7,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심막질환",
+      "topic": "외래에서 다시 본 초음파",
+      "learning_objective": "심낭액 발견 후 관류와 발생 경과, 원인을 이용해 배액 시점을 결정한다.",
+      "question_type": "management",
+      "stem": "49세 남성이 검진에서 발견된 심낭액을 추적하러 왔다. 10개월 동안 세 번의 심초음파에서 최대 두께는 23–25 mm였다. 자전거로 출퇴근하며 호흡곤란이나 흉통이 없다. 혈압 122/78 mmHg, 경정맥압과 CRP는 정상이다. 우심방·우심실 함몰이나 유의한 호흡성 유입속도 변화는 없다. 이전 원인 평가에서 감염, 종양, 신장·갑상선 질환을 의심할 근거가 없었고 CMR에서도 심낭 염증은 보이지 않았다.",
+      "question": "오늘 외래에서 정할 다음 계획은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "진단적 경피 심낭천자"
+        },
+        {
+          "label": "B",
+          "text": "콜히친 시작 후 염증 추적"
+        },
+        {
+          "label": "C",
+          "text": "흉강경 심낭창 수술"
+        },
+        {
+          "label": "D",
+          "text": "증상 교육과 심초음파 추적"
+        },
+        {
+          "label": "E",
+          "text": "심낭 생검을 위한 입원"
+        }
+      ],
+      "answer": "D",
+      "causal_chain": [
+        "천천히 고인 액체는 심낭이 늘어날 시간을 준다.",
+        "안정된 크기와 보존된 관류는 현재 압전 가능성을 낮춘다.",
+        "위험 원인과 염증을 확인한 뒤 증상·혈역학 변화를 추적한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "큰 삼출에서 떠올릴 수 있으나 진행, 압전 및 특정 원인에 대한 의심이 없다.",
+          "correct_when": "세균성·악성 원인이 의심되거나 혈역학 영향이 생기면 배액 적응을 재평가한다.",
+          "misconception_id": "genesis.size",
+          "misconception": "심낭액 두께만으로 위험을 판단함"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "CRP와 CMR 모두 현재 심낭 염증을 뒷받침하지 않는다.",
+          "correct_when": "활동성 심낭염이면 별도의 항염 치료 적응을 판단한다.",
+          "misconception_id": "genesis.cause",
+          "misconception": "원인에 따른 처치 차이를 놓침"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "확인된 재축적이나 증상, 조직 진단이 필요한 소견이 없다.",
+          "correct_when": "증상을 일으키는 재발성 삼출이나 배액 적절성이 문제될 때 검토한다.",
+          "misconception_id": "genesis.size",
+          "misconception": "심낭액 두께만으로 위험을 판단함"
+        },
+        "D": {
+          "verdict": "correct",
+          "why_best": "만성·무증상이고 원인 평가가 끝난 비염증성 삼출이다. 새 호흡곤란이나 흉통이 생기면 예정일 전 평가하도록 안내한다.",
+          "correct_when": "안정된 중등도 이상 특발성 삼출에서는 약 6개월 간격 추적이 한 예이며 임상 상황에 따라 조정한다."
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "단순히 측정값이 크다는 이유만으로 조직 진단의 이득이 커지지는 않는다.",
+          "correct_when": "악성 침윤 등 구체적 의심이 있고 기존 평가로 설명되지 않을 때 고려한다.",
+          "misconception_id": "genesis.size",
+          "misconception": "심낭액 두께만으로 위험을 판단함"
+        }
+      },
+      "takeaway": "같은 24 mm라도 새 증상·압전·감염 또는 악성 의심 여부가 다음 행동을 가른다.",
+      "misconception_tags": [
+        "심낭액 두께만으로 위험을 판단함",
+        "원인에 따른 처치 차이를 놓침"
+      ],
+      "misconception_ids": [
+        "genesis.size",
+        "genesis.cause"
+      ],
+      "source_refs": [
+        {
+          "file": "2025 ESC Guidelines for the management of myocarditis and pericarditis",
+          "year": 2025,
+          "url": "https://doi.org/10.1093/eurheartj/ehaf192",
+          "section": "§11.7.4–5 Pericardial effusion, therapy and follow-up; Figure 19"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-03",
+      "revision": 1,
+      "objective_id": "genesis.cv.pericardial_effusion_triage",
+      "variant_role": "transfer",
+      "transfer_days": 30,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심막질환",
+      "topic": "발열이 계속되는 입원 환자",
+      "learning_objective": "심낭액 발견 후 관류와 발생 경과, 원인을 이용해 배액 시점을 결정한다.",
+      "question_type": "next_best_step",
+      "stem": "58세 남성이 혈액배양 두 쌍에서 황색포도알균이 검출된 폐렴으로 입원했다. 감수성에 맞는 정주 항생제를 투여하는 중에도 39.2°C 발열과 새 흉통이 생겼다. CT에서 심장에 인접한 폐 감염 병변과 격막이 여러 개 보이는 새 심낭액이 관찰된다. 심초음파상 최대 두께 18 mm이고 우심실 함몰은 없다. 혈압 116/70 mmHg다. 경피 접근으로 모든 공간을 배액하기 어렵다는 영상의학과 소견이다.",
+      "question": "항생제를 유지하면서 심낭 병변에 대해 지금 우선할 계획은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "단기 항염 치료 후 초음파 재검"
+        },
+        {
+          "label": "B",
+          "text": "심낭 MRI로 염증 분포 확인"
+        },
+        {
+          "label": "C",
+          "text": "혈액배양 추적 후 배액 결정"
+        },
+        {
+          "label": "D",
+          "text": "연속 초음파로 압전 발생 감시"
+        },
+        {
+          "label": "E",
+          "text": "외과 배액과 심낭액 배양 의뢰"
+        }
+      ],
+      "answer": "E",
+      "causal_chain": [
+        "인접 감염이나 균혈증이 심낭으로 파급될 수 있다.",
+        "농성 액체와 격벽은 항생제만으로 감염원을 제거하기 어렵게 만든다.",
+        "정상 혈압에서도 배액·배양으로 원인을 다루고 항생제를 조정한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "균혈증과 다방성 새 삼출은 단순 무균성 염증으로 경과를 볼 근거가 약하다.",
+          "correct_when": "세균 감염의 의심이 낮고 활동성 심낭염이 확인될 때 항염 치료를 고려한다.",
+          "misconception_id": "genesis.cause",
+          "misconception": "원인에 따른 처치 차이를 놓침"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "염증의 분포가 보여도 감염원 제거와 미생물 검체 확보를 대신하기 어렵다.",
+          "correct_when": "감염이 낮게 의심되고 염증성 질환의 조직 특성 평가가 결정을 바꿀 때 유용하다.",
+          "misconception_id": "genesis.time",
+          "misconception": "결정적 처치를 검사 뒤로 미룸"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "혈액배양 반응과 관계없이 다방성 심낭 감염은 별도로 남을 수 있다.",
+          "correct_when": "배액할 감염 초점이 의심되지 않을 때 배양 추세를 중심에 둘 수 있다.",
+          "misconception_id": "genesis.time",
+          "misconception": "결정적 처치를 검사 뒤로 미룸"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "압전이 없어도 화농성 심낭염의 의심 자체가 긴급 배액의 이유다.",
+          "correct_when": "원인에 따른 긴급 조치가 없고 안정된 삼출에서는 감시가 합리적이다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        },
+        "E": {
+          "verdict": "correct",
+          "why_best": "혈역학이 보존되어도 감염원 제거가 필요하다. 격벽 때문에 경피 완전 배액이 어려워 외과적 접근을 우선 협의한다.",
+          "correct_when": "화농성이 의심되어 긴급 배액이 필요한 경우, 접근성과 완전 배액 가능성으로 방법을 정한다."
+        }
+      },
+      "takeaway": "심낭액 배액에는 압전 해소와 원인 진단·감염원 제거라는 서로 다른 목적이 있다.",
+      "misconception_tags": [
+        "원인에 따른 처치 차이를 놓침",
+        "결정적 처치를 검사 뒤로 미룸",
+        "관류와 충만압을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.cause",
+        "genesis.time",
+        "genesis.pressure"
+      ],
+      "source_refs": [
+        {
+          "file": "2025 ESC Guidelines for the management of myocarditis and pericarditis",
+          "year": 2025,
+          "url": "https://doi.org/10.1093/eurheartj/ehaf192",
+          "section": "§11.5 Purulent pericarditis; recommendations for interventional techniques in pericarditis"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-04",
+      "revision": 1,
+      "objective_id": "genesis.cv.constriction_vs_myocardial_restriction",
+      "variant_role": "index",
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심막질환",
+      "topic": "복수가 다시 차는 환자",
+      "learning_objective": "호흡에 따른 심실 상호작용과 승모판륜 운동을 이용해 심낭 수축과 심근 제한을 구별한다.",
+      "question_type": "mechanism",
+      "stem": "60세 남성이 복수와 조기 포만감으로 왔다. EF 59%, 양쪽 심방 확장, 하대정맥 확장이 보인다. 삼첨판역류는 경도다. 들숨마다 심실중격이 좌측으로 이동하고 간정맥 도플러에서 날숨 이완기에 뚜렷한 역류가 관찰된다. 승모판륜의 안쪽 e′는 11 cm/s, 가쪽 e′는 6 cm/s다.",
+      "question": "이 환자의 정맥 울혈을 가장 잘 설명하는 기전은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "심근 침윤에 의한 이완기 강직"
+        },
+        {
+          "label": "B",
+          "text": "삼첨판 역류에 의한 우심방 용적부하"
+        },
+        {
+          "label": "C",
+          "text": "심낭 구속에 의한 심실 간 충만 경쟁"
+        },
+        {
+          "label": "D",
+          "text": "폐혈관 저항 증가에 의한 우심실 과부하"
+        },
+        {
+          "label": "E",
+          "text": "고혈압성 비대에 의한 좌심실 이완 지연"
+        }
+      ],
+      "answer": "C",
+      "causal_chain": [
+        "딱딱한 심낭이 이완기 총 용적 증가를 제한한다.",
+        "흡기 우심실 충만 증가가 중격을 좌측으로 민다.",
+        "호기에는 우심실 충만 한계 때문에 간정맥에 이완기 역류가 생길 수 있다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "심근 자체의 이완 저하라면 대개 안쪽과 가쪽 e′가 함께 낮아진다. 호흡성 중격 이동도 설명하기 어렵다.",
+          "correct_when": "두 부위 e′가 모두 낮고 심근 침윤 소견이 뚜렷할 때 우선 의심한다.",
+          "misconception_id": "genesis.anatomy",
+          "misconception": "구조 소견만으로 기능을 판단함"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "삼첨판역류는 경도이며 심한 역류의 간정맥 역류는 주로 수축기에 나타난다.",
+          "correct_when": "중증 역류와 간정맥 수축기 역류가 함께 확인될 때 타당하다.",
+          "misconception_id": "genesis.doppler",
+          "misconception": "도플러 흐름의 시점을 혼동함"
+        },
+        "C": {
+          "verdict": "correct",
+          "why_best": "총 심장 용적이 제한되면 한쪽으로 들어오는 혈류가 다른 쪽의 충만 공간에 영향을 준다. 호흡성 중격 이동, 보존된 안쪽 e′, 날숨 이완기 역류가 맞물린다.",
+          "correct_when": "여러 도플러 소견을 임상 맥락과 함께 해석한다. 한 측정치만으로 확정하지 않는다."
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "우심실 압력부하에서도 중격 편평화가 가능하지만 호흡·이완 시점과 판륜 속도의 조합을 설명하지 못한다.",
+          "correct_when": "폐동맥압 상승과 우심실 압력 과부하가 지배적일 때 지지된다.",
+          "misconception_id": "genesis.doppler",
+          "misconception": "도플러 흐름의 시점을 혼동함"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "단순 이완 지연은 보통 심근 이완 속도를 떨어뜨린다. 호흡에 따른 양 심실 충만 경쟁이 더 직접적인 단서다.",
+          "correct_when": "좌심실 비대와 낮은 판륜 이완 속도가 있고 수축성 생리가 없을 때 적합하다.",
+          "misconception_id": "genesis.anatomy",
+          "misconception": "구조 소견만으로 기능을 판단함"
+        }
+      },
+      "takeaway": "경정맥 팽창만으로 조직을 정할 수 없다. 호흡성 중격 이동, 안쪽 e′, 간정맥 역류의 시점을 함께 본다.",
+      "misconception_tags": [
+        "구조 소견만으로 기능을 판단함",
+        "도플러 흐름의 시점을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.anatomy",
+        "genesis.doppler"
+      ],
+      "source_refs": [
+        {
+          "file": "Welch et al. Echocardiographic diagnosis of constrictive pericarditis: Mayo Clinic criteria",
+          "year": 2014,
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24633783/",
+          "section": "Respiration-related septal shift, medial e′, expiratory diastolic hepatic vein flow reversal"
+        },
+        {
+          "file": "2025 ESC Guidelines for the management of myocarditis and pericarditis",
+          "year": 2025,
+          "url": "https://doi.org/10.1093/eurheartj/ehaf192",
+          "section": "Constrictive pericarditis, multimodality imaging"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-05",
+      "revision": 1,
+      "objective_id": "genesis.cv.constriction_vs_myocardial_restriction",
+      "variant_role": "transfer",
+      "transfer_days": 7,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심막질환",
+      "topic": "흉부 방사선치료를 받은 환자",
+      "learning_objective": "호흡에 따른 심실 상호작용과 승모판륜 운동을 이용해 심낭 수축과 심근 제한을 구별한다.",
+      "question_type": "interpretation",
+      "stem": "종격동 방사선치료를 받은 66세 여성이 하지부종으로 왔다. EF 55%, 양 심방 확장, 심낭 두께 5 mm가 보인다. 심근에도 미만성 섬유화 소견이 있어 두 병변이 공존할 수 있다. 심방세동·중증 판막질환은 없다. 심초음파실에 영상 재분석을 의뢰했다.",
+      "question": "현재 충만 장애에서 심근 제한의 기여가 더 크다는 판단을 가장 잘 지지하는 결과는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "양측 판륜 e′ 저하와 호흡성 중격 이동 부재"
+        },
+        {
+          "label": "B",
+          "text": "짧은 승모판 감속시간과 좌심방 용적 증가"
+        },
+        {
+          "label": "C",
+          "text": "날숨 이완기 간정맥 역류와 호흡성 중격 이동"
+        },
+        {
+          "label": "D",
+          "text": "보존된 안쪽 e′와 감소한 가쪽 판륜 e′"
+        },
+        {
+          "label": "E",
+          "text": "하대정맥 확장과 들숨 시 직경 감소 둔화"
+        }
+      ],
+      "answer": "A",
+      "causal_chain": [
+        "방사선치료는 심낭과 심근 모두에 흔적을 남길 수 있다.",
+        "심근 이완이 제한되면 판륜 이완속도가 전반적으로 낮아진다.",
+        "심낭이 두꺼워 보여도 호흡에 따른 상호의존성까지 확인해야 주된 기전을 판단할 수 있다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "correct",
+          "why_best": "내·외측 판륜이 함께 느리고 호흡성 심실 경쟁의 증거가 약하다. 영상에서 보인 심근 섬유화와 함께 보면 심근 제한의 기여를 지지한다.",
+          "correct_when": "혼합 생리는 가능하다. 치료 결정이 다르고 자료가 엇갈리면 전문팀에서 추가 혈역학 평가를 고려한다."
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "제한성 유입과 심방 확장은 심낭 수축과 심근 제한에서 모두 관찰된다.",
+          "correct_when": "만성 충만압 상승을 뒷받침하는 자료로는 쓸 수 있다.",
+          "misconception_id": "genesis.anatomy",
+          "misconception": "구조 소견만으로 기능을 판단함"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "호흡에 따른 심실 상호의존성이 강한 수축성 심낭 생리를 더 지지한다.",
+          "correct_when": "판륜 이완이 보존되고 심낭 구속이 주된 병변일 때 맞는다.",
+          "misconception_id": "genesis.doppler",
+          "misconception": "도플러 흐름의 시점을 혼동함"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "가쪽 판륜이 상대적으로 묶이고 안쪽 이완이 보존되는 양상은 수축성 심낭 질환에서 나타난다.",
+          "correct_when": "호흡성 중격 이동이 함께 보이면 심낭 수축 쪽 근거가 강화된다.",
+          "misconception_id": "genesis.doppler",
+          "misconception": "도플러 흐름의 시점을 혼동함"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "높은 우심방압을 시사하지만 압력이 오른 원인이 심근인지 심낭인지 구분하기 어렵다.",
+          "correct_when": "우측 충만압이 높은지 평가하는 데 도움이 된다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        }
+      },
+      "takeaway": "형태와 기능을 분리한다. 두꺼운 심낭은 수축성 생리를 단독으로 입증하지 않는다.",
+      "misconception_tags": [
+        "구조 소견만으로 기능을 판단함",
+        "도플러 흐름의 시점을 혼동함",
+        "관류와 충만압을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.anatomy",
+        "genesis.doppler",
+        "genesis.pressure"
+      ],
+      "source_refs": [
+        {
+          "file": "Welch et al. Echocardiographic diagnosis of constrictive pericarditis: Mayo Clinic criteria",
+          "year": 2014,
+          "url": "https://pubmed.ncbi.nlm.nih.gov/24633783/",
+          "section": "Comparison of constrictive pericarditis and restrictive myocardial disease"
+        },
+        {
+          "file": "2025 ESC Guidelines for the management of myocarditis and pericarditis",
+          "year": 2025,
+          "url": "https://doi.org/10.1093/eurheartj/ehaf192",
+          "section": "Constrictive pericarditis, diagnosis and differential diagnosis"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-06",
+      "revision": 1,
+      "objective_id": "genesis.cv.hf_congestion_and_perfusion",
+      "variant_role": "index",
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심부전",
+      "topic": "입원 이틀째의 소변량",
+      "learning_objective": "신기능 추세를 관류·잔여 울혈·이뇨 반응과 함께 해석해 다음 이뇨 전략을 정한다.",
+      "question_type": "management",
+      "stem": "급성 심부전으로 입원한 69세 남성에게 정주 furosemide를 투여했다. 하루 체중이 1.3 kg 줄었고 누워 숨 쉬기가 조금 편해졌다. 아직 JVP 12 cmH₂O, 폐 양쪽 B-line과 발목부종이 남아 있다. 혈압 118/72 mmHg, 사지는 따뜻하며 소변량은 유지된다. Cr은 1.2에서 1.4 mg/dL로 올랐다. 전해질은 안정적이다.",
+      "question": "다음 24시간의 체액 관리는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "이뇨를 보류하고 정주 수액을 투여한다"
+        },
+        {
+          "label": "B",
+          "text": "현재 정주 이뇨를 지속하며 반응을 추적한다"
+        },
+        {
+          "label": "C",
+          "text": "정주 이뇨를 감량하고 경구제로 전환한다"
+        },
+        {
+          "label": "D",
+          "text": "이뇨제 대신 단독 초여과를 시작한다"
+        },
+        {
+          "label": "E",
+          "text": "저용량 강심제를 추가해 신관류를 높인다"
+        }
+      ],
+      "answer": "B",
+      "causal_chain": [
+        "높은 정맥압은 폐·전신 울혈을 일으키고 신기능에도 영향을 줄 수 있다.",
+        "이뇨 중 작은 Cr 상승이 반드시 과도한 체액 제거를 뜻하지는 않는다.",
+        "관류·잔여 울혈·반응을 반복 확인해 용량을 조정한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "신기능 변화가 작고 저충만·저관류를 가리키는 소견이 없으며 울혈은 뚜렷하다.",
+          "correct_when": "증상성 저혈압과 저충만이 확인될 때 신중한 체액 보충을 고려한다.",
+          "misconception_id": "genesis.kidney",
+          "misconception": "크레아티닌 변화만으로 결정함"
+        },
+        "B": {
+          "verdict": "correct",
+          "why_best": "관류가 보존되고 이뇨 반응이 나타났으나 울혈이 남았다. 체중·소변량·전해질·관류·신기능을 다시 평가한다.",
+          "correct_when": "반응이 부족하거나 저관류가 생기면 같은 용량을 기계적으로 유지하지 않는다."
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "첫날의 호전만으로 정주 치료의 목표인 울혈 해소를 달성했다고 보기 어렵다.",
+          "correct_when": "울혈이 충분히 줄어들고 경구 용량으로 체액 균형 유지가 가능하면 적절하다.",
+          "misconception_id": "genesis.efficacy",
+          "misconception": "초기 치료 반응을 재평가하지 않음"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "현재 약물에 반응하며 체외 체액 제거가 필요한 적응은 제시되지 않았다.",
+          "correct_when": "적절한 약물 치료에도 체액 제거가 어렵거나 신대체요법 적응이 있으면 검토한다.",
+          "misconception_id": "genesis.efficacy",
+          "misconception": "초기 치료 반응을 재평가하지 않음"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "따뜻한 사지와 보존된 혈압·소변량은 저출력성 관류 부전을 지지하지 않는다.",
+          "correct_when": "심인성 쇼크 등 저심박출로 장기 관류가 위협받을 때 전문 감시하에 고려한다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        }
+      },
+      "takeaway": "Cr이 오르면 먼저 환자가 아직 젖어 있는지, 장기가 관류되는지, 이뇨에 반응하는지 다시 본다.",
+      "misconception_tags": [
+        "크레아티닌 변화만으로 결정함",
+        "초기 치료 반응을 재평가하지 않음",
+        "관류와 충만압을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.kidney",
+        "genesis.efficacy",
+        "genesis.pressure"
+      ],
+      "source_refs": [
+        {
+          "file": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+          "year": 2022,
+          "url": "https://doi.org/10.1161/CIR.0000000000001063",
+          "section": "§9.2 Maintenance or optimization of GDMT; §9.3 Diuretics in hospitalized patients"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-07",
+      "revision": 1,
+      "objective_id": "genesis.cv.hf_congestion_and_perfusion",
+      "variant_role": "transfer",
+      "transfer_days": 7,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심부전",
+      "topic": "퇴원 후 생긴 어지럼",
+      "learning_objective": "신기능 추세를 관류·잔여 울혈·이뇨 반응과 함께 해석해 다음 이뇨 전략을 정한다.",
+      "question_type": "management",
+      "stem": "심부전으로 퇴원한 75세 여성이 furosemide 증량 후 5일 만에 내원했다. 사흘 동안 묽은 변을 봤고 체중은 이전 안정 체중보다 2.6 kg 낮다. 누우면 혈압 112/70, 일어서면 86/56 mmHg로 어지럽다. JVP는 낮고 폐음은 깨끗하며 부종이 없다. Cr은 1.1에서 1.6 mg/dL로 상승했다. 출혈·발열은 없다.",
+      "question": "오늘 이뇨제와 체액 상태에 대해 우선할 조치는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "기존 용량을 유지하고 수분 제한을 강화한다"
+        },
+        {
+          "label": "B",
+          "text": "정주 loop 이뇨제로 바꾸어 반응을 확인한다"
+        },
+        {
+          "label": "C",
+          "text": "이뇨를 잠시 보류하고 체액 손실을 교정한다"
+        },
+        {
+          "label": "D",
+          "text": "티아지드계 약제를 추가하고 전해질을 추적한다"
+        },
+        {
+          "label": "E",
+          "text": "저용량 nitrate를 투여하고 혈압을 추적한다"
+        }
+      ],
+      "answer": "C",
+      "causal_chain": [
+        "설사와 이뇨가 겹치면서 유효순환량이 감소한다.",
+        "기립 시 정맥환류 감소를 보상하지 못해 어지럼과 혈압 저하가 생긴다.",
+        "울혈을 확인하며 손실을 교정하고 유지 이뇨량을 재평가한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "현재 체중·JVP·기립 증상은 잔여 울혈보다 체액 결핍을 지지한다.",
+          "correct_when": "울혈과 희석성 저나트륨혈증 등이 실제로 확인될 때 수분 전략을 개별화한다.",
+          "misconception_id": "genesis.volume",
+          "misconception": "현재 체액 상태를 재평가하지 않음"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "경구 흡수 실패보다 장관 손실과 이뇨 후 저충만을 의심하는 상황이다.",
+          "correct_when": "위장관 부종과 지속되는 심한 울혈이 있으면 정주제로 전환할 수 있다.",
+          "misconception_id": "genesis.volume",
+          "misconception": "현재 체액 상태를 재평가하지 않음"
+        },
+        "C": {
+          "verdict": "correct",
+          "why_best": "증상성 기립 저혈압과 낮은 JVP, 안정 체중 아래의 체중 감소가 함께 있다. 손실을 보충하면서 혈압·폐울혈·신기능을 다시 본다.",
+          "correct_when": "울혈이 재발하거나 체액 상태가 회복되면 이뇨 재개 여부와 용량을 정한다."
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "연속 네프론 차단은 이뇨를 더 강화하므로 현재 손실을 악화시킬 수 있다.",
+          "correct_when": "충분한 loop 용량에도 이뇨 저항과 울혈이 남는 환자라면 검토한다.",
+          "misconception_id": "genesis.efficacy",
+          "misconception": "초기 치료 반응을 재평가하지 않음"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "정맥 확장으로 전부하가 더 감소해 기립 시 증상이 악화될 수 있다.",
+          "correct_when": "충분한 혈압이 유지되는 급성 폐울혈에서 선택할 수 있다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        }
+      },
+      "takeaway": "같은 Cr 상승도 낮은 JVP와 증상성 기립 저혈압이 동반되면 이뇨 전략이 바뀐다.",
+      "misconception_tags": [
+        "현재 체액 상태를 재평가하지 않음",
+        "초기 치료 반응을 재평가하지 않음",
+        "관류와 충만압을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.volume",
+        "genesis.efficacy",
+        "genesis.pressure"
+      ],
+      "source_refs": [
+        {
+          "file": "2021 ESC Guidelines for the diagnosis and treatment of acute and chronic heart failure",
+          "year": 2021,
+          "url": "https://academic.oup.com/eurheartj/article/42/36/3599/6358045",
+          "section": "§5.4.1 Diuretics, adjustment to volume status"
+        },
+        {
+          "file": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+          "year": 2022,
+          "url": "https://doi.org/10.1161/CIR.0000000000001063",
+          "section": "§7.2 Diuretics and decongestion strategies"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-08",
+      "revision": 1,
+      "objective_id": "genesis.cv.hf_congestion_and_perfusion",
+      "variant_role": "transfer",
+      "transfer_days": 30,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심부전",
+      "topic": "입원 중 체중이 줄지 않는 환자",
+      "learning_objective": "신기능 추세를 관류·잔여 울혈·이뇨 반응과 함께 해석해 다음 이뇨 전략을 정한다.",
+      "question_type": "treatment",
+      "stem": "만성 심부전 환자가 기좌호흡으로 입원했다. 주입 경로·섭취량 기록을 확인했고, 정주 loop 이뇨제를 단계적으로 고용량까지 올려도 이틀 동안 체중과 JVP가 변하지 않았다. 소변량 증가도 미미하다. 양쪽 폐에 B-line이 남아 있다. 혈압 114/70 mmHg, 사지는 따뜻하다. eGFR 48, Na 139, K 4.1 mmol/L이며 긴급 투석 적응은 없다.",
+      "question": "전해질과 신기능을 면밀히 감시할 수 있을 때, 다음 약물 조정으로 가장 적절한 것은?",
+      "options": [
+        {
+          "label": "A",
+          "text": "티아지드계 이뇨제를 병용한다"
+        },
+        {
+          "label": "B",
+          "text": "Dobutamine 지속 주입을 추가한다"
+        },
+        {
+          "label": "C",
+          "text": "경구 torsemide 단독으로 전환한다"
+        },
+        {
+          "label": "D",
+          "text": "생리식염수로 전부하를 보충한다"
+        },
+        {
+          "label": "E",
+          "text": "Carvedilol 용량을 먼저 증량한다"
+        }
+      ],
+      "answer": "A",
+      "causal_chain": [
+        "충분한 loop 이뇨에도 원위 네프론의 Na 회수가 이뇨를 제한할 수 있다.",
+        "울혈·소변량·투여 경로를 확인해 반응 부족을 확인한다.",
+        "다른 네프론 부위를 추가로 차단하면 전해질 소실 위험도 함께 증가한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "correct",
+          "why_best": "Loop 약물로 차단되지 않는 원위 네프론에서 Na 재흡수를 함께 억제한다. 전해질 이상과 과도한 체액 손실을 면밀히 추적한다.",
+          "correct_when": "충분한 loop 용량에도 울혈과 이뇨 저항이 남은 상황에 제한해 검토한다."
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "심박출량 저하로 인한 말초 저관류 소견이 없다.",
+          "correct_when": "저심박출성 쇼크에서 관류 지원이 필요할 때 검토한다.",
+          "misconception_id": "genesis.pressure",
+          "misconception": "관류와 충만압을 혼동함"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "정주제를 적절히 투여했는데도 반응하지 않아 경구 흡수 개선으로 풀 문제라는 근거가 없다.",
+          "correct_when": "울혈이 해소되고 경구 유지요법을 시험할 때 합리적이다.",
+          "misconception_id": "genesis.efficacy",
+          "misconception": "초기 치료 반응을 재평가하지 않음"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "남은 폐울혈과 높은 JVP는 체액 고갈과 맞지 않는다.",
+          "correct_when": "체액 소실과 저충만에 의한 저혈압이면 신중히 고려한다.",
+          "misconception_id": "genesis.volume",
+          "misconception": "현재 체액 상태를 재평가하지 않음"
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "장기 신경호르몬 차단은 필요한 치료일 수 있지만 현재의 불충분한 나트륨 배설을 바로 교정할 선택은 아니다.",
+          "correct_when": "체액·관류가 안정된 HFrEF 환자에서 내약성에 따라 용량을 조절한다.",
+          "misconception_id": "genesis.target",
+          "misconception": "증상 완화와 예후 개선을 혼동함"
+        }
+      },
+      "takeaway": "이뇨 강화는 Cr 하나나 입원 일수보다 현재 울혈, 적정 loop 투여 여부, 실제 배뇨 반응으로 결정한다.",
+      "misconception_tags": [
+        "관류와 충만압을 혼동함",
+        "초기 치료 반응을 재평가하지 않음",
+        "현재 체액 상태를 재평가하지 않음",
+        "증상 완화와 예후 개선을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.pressure",
+        "genesis.efficacy",
+        "genesis.volume",
+        "genesis.target"
+      ],
+      "source_refs": [
+        {
+          "file": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+          "year": 2022,
+          "url": "https://doi.org/10.1161/CIR.0000000000001063",
+          "section": "§7.2 Diuretics and decongestion strategies; §9.3 Diuretics in hospitalized patients"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-09",
+      "revision": 1,
+      "objective_id": "genesis.cv.hfrEF_therapy_eligibility",
+      "variant_role": "index",
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심부전",
+      "topic": "심부전 외래의 추가 처방",
+      "learning_objective": "증상이 있는 HFrEF의 예후 개선 치료를 현재 약제·심박수·신기능·칼륨에 맞춰 선택한다.",
+      "question_type": "treatment",
+      "stem": "LVEF 31%인 62세 남성이 NYHA II 증상으로 외래에 왔다. 최대 내약 용량의 sacubitril/valsartan과 bisoprolol을 복용하며 MRA와 SGLT2 억제제는 복용하지 않는다. 당뇨는 없고 현재 울혈도 없다. 동율동 61회/분, 혈압 116/72 mmHg, eGFR 52다. 반복한 비용혈 검체에서 K 5.2 mmol/L가 확인되어 원인과 식이·약제를 함께 검토 중이다.",
+      "question": "칼륨 문제를 별도로 추적하면서 오늘 추가할 예후 개선 약제는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "Spironolactone"
+        },
+        {
+          "label": "B",
+          "text": "Ivabradine"
+        },
+        {
+          "label": "C",
+          "text": "Furosemide"
+        },
+        {
+          "label": "D",
+          "text": "Dapagliflozin"
+        },
+        {
+          "label": "E",
+          "text": "Eplerenone"
+        }
+      ],
+      "answer": "D",
+      "causal_chain": [
+        "HFrEF에서는 일부 약제가 장기 악화·입원 위험을 줄인다.",
+        "MRA는 K 배설을 줄일 수 있어 시작 전 K와 신기능을 본다.",
+        "SGLT2 억제제의 HFrEF 적응은 당뇨 진단을 필요로 하지 않는다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "유효한 HFrEF 치료지만 현재 K가 MRA를 처음 시작할 권고 범위를 벗어난다.",
+          "correct_when": "K <5.0 mmol/L이고 eGFR >30 mL/min/1.73 m²이며 추적 검사가 가능하면 고려한다.",
+          "misconception_id": "genesis.drug",
+          "misconception": "약제의 적용 조건을 놓침"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "동율동이지만 심박수 61회/분으로 적응에 맞지 않는다.",
+          "correct_when": "최대 내약 beta-blocker에도 안정 시 동율동 심박수가 70회/분 이상인 선별 환자에서 고려한다.",
+          "misconception_id": "genesis.drug",
+          "misconception": "약제의 적용 조건을 놓침"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "울혈 완화를 위해 쓸 수 있으나 현재 환자가 목표로 하는 예후 개선 계열을 채워 주지는 않는다.",
+          "correct_when": "체액 과다가 있으면 증상과 체액을 조절할 때 사용한다.",
+          "misconception_id": "genesis.target",
+          "misconception": "증상 완화와 예후 개선을 혼동함"
+        },
+        "D": {
+          "verdict": "correct",
+          "why_best": "증상이 있는 만성 HFrEF에서 당뇨 유무와 관계없이 심부전 사건을 줄이는 치료다. 현재 신기능·혈압·체액 상태에서 제시된 약제 중 시작에 적합하다.",
+          "correct_when": "시작 때 체액 상태, 급성질환·금식 상황과 부작용을 함께 검토한다."
+        },
+        "E": {
+          "verdict": "incorrect",
+          "trap": "다른 MRA로 바꿔도 시작 시 칼륨·신기능 기준은 적용된다.",
+          "correct_when": "MRA 적응과 안전 기준을 충족하는 환자에서 사용할 수 있다.",
+          "misconception_id": "genesis.drug",
+          "misconception": "약제의 적용 조건을 놓침"
+        }
+      },
+      "takeaway": "빠진 약물 계열을 찾고 각 계열별 시작 조건과 치료 목표를 따로 적용한다.",
+      "misconception_tags": [
+        "약제의 적용 조건을 놓침",
+        "증상 완화와 예후 개선을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.drug",
+        "genesis.target"
+      ],
+      "source_refs": [
+        {
+          "file": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+          "year": 2022,
+          "url": "https://doi.org/10.1161/CIR.0000000000001063",
+          "section": "§7.3.3 Mineralocorticoid receptor antagonists; §7.3.4 SGLT2 inhibitors; §7.3.9.1 Ivabradine"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    },
+    {
+      "id": "GEN-PILOT-CV-20261120-10",
+      "revision": 1,
+      "objective_id": "genesis.cv.hfrEF_therapy_eligibility",
+      "variant_role": "transfer",
+      "transfer_days": 7,
+      "subject": "내과",
+      "system": "순환기",
+      "subtopic": "심부전",
+      "topic": "한 달 뒤의 약제 점검",
+      "learning_objective": "증상이 있는 HFrEF의 예후 개선 치료를 현재 약제·심박수·신기능·칼륨에 맞춰 선택한다.",
+      "question_type": "treatment",
+      "stem": "심근병증으로 LVEF 29%인 54세 여성이 꾸준히 치료받고 있다. NYHA II이며 sacubitril/valsartan, carvedilol, dapagliflozin을 최대 내약 용량으로 복용한다. MRA를 투여한 적은 없다. 부종과 기좌호흡은 없다. 혈압 112/74 mmHg, 동율동 62회/분, eGFR 46, K 4.4 mmol/L이다. 투약 후 신기능·전해질 추적이 가능하다.",
+      "question": "심부전의 예후를 개선하기 위해 우선 추가할 약제는?",
+      "options": [
+        {
+          "label": "A",
+          "text": "Ivabradine"
+        },
+        {
+          "label": "B",
+          "text": "Metolazone"
+        },
+        {
+          "label": "C",
+          "text": "Digoxin"
+        },
+        {
+          "label": "D",
+          "text": "Furosemide"
+        },
+        {
+          "label": "E",
+          "text": "Eplerenone"
+        }
+      ],
+      "answer": "E",
+      "causal_chain": [
+        "지속적인 aldosterone 신호는 나트륨 저류와 심근 재형성에 관여한다.",
+        "MRA는 HFrEF 예후를 개선하지만 K 상승 위험을 함께 만든다.",
+        "예후 개선 적응과 현재 안전 조건이 모두 맞을 때 시작한다."
+      ],
+      "option_analysis": {
+        "A": {
+          "verdict": "incorrect",
+          "trap": "심박수 62회/분은 이 약제를 추가할 전형적 상황에 맞지 않는다.",
+          "correct_when": "증상이 남고 적절한 beta-blocker에도 안정 시 동율동 70회/분 이상이면 검토한다.",
+          "misconception_id": "genesis.drug",
+          "misconception": "약제의 적용 조건을 놓침"
+        },
+        "B": {
+          "verdict": "incorrect",
+          "trap": "추가적인 나트륨 배설을 유도하지만 환자는 울혈 상태가 아니다.",
+          "correct_when": "충분한 loop 이뇨제에도 울혈이 남는 이뇨 저항에서 사용할 수 있다.",
+          "misconception_id": "genesis.target",
+          "misconception": "증상 완화와 예후 개선을 혼동함"
+        },
+        "C": {
+          "verdict": "incorrect",
+          "trap": "최적의 예후 개선 계열 중 MRA가 아직 빠져 있다. 이를 시작할 수 있는 조건이다.",
+          "correct_when": "표준 치료에도 증상이 지속되거나 일부 약제를 견디지 못하는 경우 선택적으로 검토한다.",
+          "misconception_id": "genesis.target",
+          "misconception": "증상 완화와 예후 개선을 혼동함"
+        },
+        "D": {
+          "verdict": "incorrect",
+          "trap": "울혈 없이 일상 활동 제한만 남은 상황에서 이뇨 자체가 예후 개선 치료의 공백을 메우지 못한다.",
+          "correct_when": "부종·기좌호흡 등 울혈이 생기면 이뇨 치료의 필요를 다시 본다.",
+          "misconception_id": "genesis.target",
+          "misconception": "증상 완화와 예후 개선을 혼동함"
+        },
+        "E": {
+          "verdict": "correct",
+          "why_best": "증상이 있는 HFrEF이고 MRA가 빠져 있다. K와 eGFR이 시작 기준에 맞는다. 투여 후 반복 측정이 처방의 일부다.",
+          "correct_when": "시작 전 eGFR >30 mL/min/1.73 m², K <5.0 mmol/L인지 확인하고 이후 K와 신기능을 면밀히 추적한다."
+        }
+      },
+      "takeaway": "같은 HFrEF라도 이미 복용 중인 계열과 오늘의 K·eGFR에 따라 다음 처방이 달라진다.",
+      "misconception_tags": [
+        "약제의 적용 조건을 놓침",
+        "증상 완화와 예후 개선을 혼동함"
+      ],
+      "misconception_ids": [
+        "genesis.drug",
+        "genesis.target"
+      ],
+      "source_refs": [
+        {
+          "file": "2022 AHA/ACC/HFSA Guideline for the Management of Heart Failure",
+          "year": 2022,
+          "url": "https://doi.org/10.1161/CIR.0000000000001063",
+          "section": "§7.3.3 Mineralocorticoid receptor antagonists"
+        }
+      ],
+      "needs_review": false,
+      "provenance": {
+        "kind": "original AI-authored educational vignette",
+        "is_actual_exam_item": false,
+        "review": "AI 편집 단계에서 인용 자료의 해당 부분을 대조함. 독립 임상의 감수·학습자 문항통계 보정 전.",
+        "source_checked_at": "2026-11-20",
+        "independent_clinical_review": false
+      }
+    }
+  ]
+}

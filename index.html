@@ -12,7 +12,7 @@
 <link rel="icon" type="image/png" sizes="64x64" href="assets/brand/praesoma-mark.png">
 <link rel="apple-touch-icon" sizes="180x180" href="assets/brand/praesoma.png">
 <link rel="preload" href="assets/fonts/SUIT-Variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="workspace.css?v=praesoma1">
+<link rel="stylesheet" href="workspace.css?v=clinical2">
 </head>
 <body>
 <a class="skip-link" href="#app">본문으로 건너뛰기</a>
@@ -59,7 +59,73 @@ function makeId(it){const key=norm(it.stem)+'|'+norm(it.question)+'|'+(it.option
 function strip(it){const r={};for(const k in it){if(k[0]!=='_')r[k]=it[k];}return r;}
 function chainOf(it){const c=it.causal_chain;if(Array.isArray(c))return c.map(x=>typeof x==='string'?x:JSON.stringify(x));if(!c)return[];return String(c).split(/\s*(?:→|->|\n)\s*/).filter(Boolean);}
 function optText(it,l){const o=(it.options||[]).find(o=>o.label===l);return o?o.text:'';}
-function allTags(){const s=new Set();for(const it of Object.values(S.bank)){(it.misconception_tags||[]).forEach(t=>s.add(t));Object.values(it.option_analysis||{}).forEach(o=>o&&o.misconception&&s.add(o.misconception));}return [...s].sort();}
+function misconceptionId(it,choice){
+  const option=it.option_analysis?.[choice];
+  return option?.misconception_id||option?.misconception||it.misconception_ids?.[0]||it.misconception_tags?.[0]||'';
+}
+function allTags(){
+  const tags=new Set();
+  for(const it of Object.values(S.bank)){
+    for(const tag of [...(it.misconception_ids||[]),...(it.misconception_tags||[])])tags.add(tag);
+    for(const choice of Object.keys(it.option_analysis||{})){const tag=misconceptionId(it,choice);if(tag)tags.add(tag);}
+  }
+  return [...tags].sort();
+}
+function canonicalJSON(value){
+  return JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)
+    ?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+}
+const revisionCache=new WeakMap();
+function itemRevision(it){
+  if(!it)return '';
+  if(revisionCache.has(it))return revisionCache.get(it);
+  const fields=['stem','question','labs','findings_text','options','answer','option_analysis','takeaway','causal_chain','media','images','media_refs','image_search_keywords'];
+  const material=Object.fromEntries(fields.filter(k=>it[k]!=null).map(k=>[k,it[k]]));
+  const version='q-'+cyrb53(canonicalJSON(material)).toString(36);
+  revisionCache.set(it,version);
+  return version;
+}
+function sourceLocated(r){
+  if(typeof r==='string')return /https?:\/\/\S+|\bdoi\b|\d|[§›]|절|단원|장\b/i.test(r.trim());
+  if(!r||typeof r!=='object')return false;
+  return /^https?:\/\/\S+/i.test(r.public_url||r.url||'')||!!(norm(r.file||r.title||r.source)&&norm(r.section||r.page||r.timestamp||r.locator||r.chapter));
+}
+function missingQualityEvidence(it){
+  const issues=[];
+  if(!Array.isArray(it.source_refs)||!it.source_refs.some(sourceLocated))issues.push('원문 위치 또는 출처 URL');
+  const missing=(Array.isArray(it.options)?it.options:[]).filter(o=>{
+    const a=it.option_analysis?.[o?.label];
+    return !a||!['mechanism','why_best','trap','correct_when','explanation','rationale'].some(k=>typeof a[k]==='string'&&a[k].trim());
+  }).map(o=>o?.label||'?');
+  if(missing.length)issues.push('근거 해설이 없는 선지 '+missing.join(', '));
+  return issues;
+}
+function reviewSignature(it){
+  return itemRevision(it)+'-'+cyrb53(canonicalJSON([it.source_refs,it.needs_review,it.generator_confidence,it.outside_source_claims])).toString(36);
+}
+function qualityReasons(it){
+  if(!it)return ['문항이 없습니다'];
+  if(it.block_id)return it.school_verified&&!it.needs_review&&(!it._schoolVerifiedRevision||it._schoolVerifiedRevision===itemRevision(it))?[]:['학교 원문 검토 대기'];
+  const issues=[...validate(it).errs,...missingQualityEvidence(it)];
+  if(it._incoming)issues.push('서로 다른 판본의 정답·해설 대조');
+  if(it._review&&it._review.signature===reviewSignature(it))return issues;
+  if(it.needs_review)issues.push('작성자가 검토 요청');
+  if(it.generator_confidence&&it.generator_confidence!=='high')issues.push('생성 단계에서 근거 불확실');
+  if(it.outside_source_claims?.length)issues.push('출처 밖 주장의 근거 확인');
+  if(it._changedPending)issues.push('변경된 정답·해설 확인');
+  return issues;
+}
+function isStudyEligible(it){return !!it&&!S.flags[it.id]&&!qualityReasons(it).length;}
+function isCurrentAttempt(a){
+  const it=S.bank[a?.qid];return !!it&&(a.revision?a.revision===itemRevision(it):!it._revisedAt);
+}
+function isCurrentSession(saved){
+  return !!saved&&Array.isArray(saved.ids)&&saved.ids.every(id=>{
+    const it=S.bank[id];
+    if(!it||(!saved.ans?.[id]&&!isStudyEligible(it)))return false;
+    return saved.itemRevisions?.[id]?saved.itemRevisions[id]===itemRevision(it):!it._revisedAt||!!saved.t0&&it._revisedAt<saved.t0;
+  });
+}
 
 /* ============ 분류 체계: 과목 › 분과 › 세부 주제 ============ */
 /* 세부 주제 목록은 사용자가 제공한 참고자료(내과 2·3분류)를 그대로 따른다.
@@ -341,14 +407,40 @@ async function loadLocal(){
   if(changed)await save('bank');
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
 }
+let activeErrata=null;
 async function syncRemote(){
   if(location.protocol==='file:')return;
   for(const path of ['bank.json','data/bank.json']){
     try{const r=await fetch(path,{cache:'no-store'});if(!r.ok)continue;const data=await r.json();
       const rep=ingestData([data],'repo:'+path,{update:false});
-      if(rep.added){await saveAll();toast(`저장소 ${path}에서 새 문항 ${rep.added}개 동기화`);render();}
+      if(rep.added||rep.updated||rep.conflicts.length){await saveAll();toast(`문항 동기화 · 신규 ${rep.added} · 수정 ${rep.updated} · 판본 확인 ${rep.conflicts.length}`);render();}
     }catch(e){}
   }
+  try{
+    const response=await fetch('data/errata.json',{cache:'no-store'});
+    if(response.ok){
+      activeErrata=await response.json();
+      const updates=applyErrata(activeErrata);
+      if(updates){await saveAll();toast('정오표 '+updates+'건이 반영되어 문항 검토를 기다립니다.');render();}
+    }
+  }catch(error){console.warn('정오표를 적용하지 못했습니다.',error);}
+}
+function errataFieldFingerprint(value){
+  const serialized=canonicalJSON(value);
+  return serialized===undefined?'absent':'v-'+cyrb53(serialized).toString(36)+'-'+serialized.length.toString(36);
+}
+function applyErrata(data){
+  if(data?.schema!=='kmle-content-errata'||!Array.isArray(data.items))return 0;
+  let count=0;
+  for(const correction of data.items){
+    const it=S.bank[correction?.id];
+    if(!it||!correction.before_revision||!correction.before_fields||!correction.changes||editionNumber(it)>=editionNumber(correction))continue;
+    if(correction.before_revision!==itemRevision(it))continue;
+    if(!Object.keys(correction.changes).every(k=>correction.before_fields[k]===errataFieldFingerprint(it[k])))continue;
+    const fixed={...strip(it),...correction.changes,id:it.id,revision:correction.revision};
+    count+=ingestData([{items:[fixed]}],'repo:data/errata.json',{update:false}).updated;
+  }
+  return count;
 }
 
 /* ============ 입력 파싱 & 적재 ============ */
@@ -378,7 +470,7 @@ function extractItems(data){
 function normalizeItem(raw){
   const it=JSON.parse(JSON.stringify(raw||{}));
   const toL=x=>{let s=String(x==null?'':x).trim();if(CIR2L[s[0]])return CIR2L[s[0]];s=s.toUpperCase().replace(/[^A-F]/g,'');return s.slice(0,1);};
-  if(Array.isArray(it.options))it.options=it.options.map((o,i)=>typeof o==='string'?{label:LABELS[i],text:o}:{label:toL(o.label)||LABELS[i],text:o.text!=null?o.text:(o.content||'')});
+  if(Array.isArray(it.options))it.options=it.options.map((o,i)=>typeof o==='string'?{label:LABELS[i],text:o}:{label:toL(o?.label)||LABELS[i],text:o?.text??o?.content??''});
   if(it.answer!=null)it.answer=toL(it.answer);
   let oa=it.option_analysis;
   if(Array.isArray(oa)){const m={};oa.forEach((x,i)=>{m[toL(x&&x.label)||LABELS[i]]=x;});oa=m;}
@@ -393,7 +485,10 @@ function validate(it){
   if(!it.stem)errs.push('stem 없음');
   if(!Array.isArray(it.options)||it.options.length<2)errs.push('options 없음');
   else if(it.options.length!==5)warns.push(`선지 ${it.options.length}개`);
-  const labels=(it.options||[]).map(o=>o.label);
+  const options=Array.isArray(it.options)?it.options:[];
+  const labels=options.map(o=>o?.label);
+  if(new Set(labels).size!==labels.length)errs.push('중복된 선지 기호');
+  if(options.some(o=>!norm(o?.text)))errs.push('내용이 없는 선지');
   if(!it.answer||!labels.includes(it.answer))errs.push('answer가 선지에 없음');
   const oa=it.option_analysis||{};
   const miss=labels.filter(l=>!oa[l]);if(miss.length)warns.push('해설 누락 선지 '+miss.join(','));
@@ -404,8 +499,36 @@ function validate(it){
   if(it.generator_confidence&&it.generator_confidence!=='high')warns.push('생성 확신도 '+it.generator_confidence);
   return{errs,warns};
 }
+function editionNumber(it){return Number.isSafeInteger(it?.revision)&&it.revision>0?it.revision:0;}
+function replaceEdition(previous,next,source){
+  const id=previous.id,oldVersion=itemRevision(previous),newVersion=itemRevision(next);
+  const changed=oldVersion!==newVersion;
+  next.id=id;next._added=previous._added;next._source=source;next._updated=Date.now();
+  next._history={...(previous._history||{})};
+  if(previous._review)next._review=previous._review;
+  if(previous._ignoredRemote)next._ignoredRemote=previous._ignoredRemote;
+  if(previous._revisedAt)next._revisedAt=previous._revisedAt;
+  if(previous._changedPending)next._changedPending=true;
+  if(previous.block_id){
+    next.block_id=previous.block_id;next.exam_id=previous.exam_id;
+    next.school_verified=changed?false:previous.school_verified;
+    next.needs_review=!next.school_verified;
+    if(next.school_verified)next._schoolVerifiedRevision=itemRevision(next);
+  }
+  if(changed){
+    next._history[oldVersion] ||= {item:strip(previous),at:next._updated};
+    next._revisedAt=next._updated;next._changedPending=true;delete next._review;
+    for(const a of S.attempts)if(a.qid===id&&!a.revision){a.revision=oldVersion;a.answerKey=previous.answer;}
+    if(S.srs[id]||S.attempts.some(a=>a.qid===id)){
+      S.srs[id]={reps:0,lapses:0,iv:0,last:0,due:next._updated,revision:newVersion};
+    }
+    if(session?.ids.includes(id))session=null;
+    if(S.meta.workspace?.resume?.ids.includes(id))S.meta.workspace.resume=null;
+  }
+  S.bank[id]=next;
+}
 function ingestData(list,source,opts={update:true}){
-  const rep={added:0,updated:0,dup:0,invalid:[],warned:[],metas:[],cls:0,clsMiss:[]};
+  const rep={added:0,updated:0,dup:0,invalid:[],warned:[],metas:[],cls:0,clsMiss:[],conflicts:[]};
   const batchId='B'+Date.now().toString(36);
   for(const data of list){
     const{items,metas,cls}=extractItems(data);rep.metas.push(...metas);
@@ -415,21 +538,38 @@ function ingestData(list,source,opts={update:true}){
       it.subtopic=c.subtopic||'';delete it.subtopic_auto;normClass(it);rep.cls++;
     }
     for(const raw of items){
-      const it=normalizeItem(raw);const v=validate(it);
+      const it=normalizeItem(strip(raw||{}));const v=validate(it);
       if(v.errs.length){rep.invalid.push({stem:norm(it.stem).slice(0,50),errs:v.errs});continue;}
       const id=it.id||makeId(it);
       if(!opts.update&&S.meta.deleted.includes(id))continue;
       const exist=S.bank[id];
       if(exist){
-        if(!opts.update){rep.dup++;continue;}
-        if(JSON.stringify(strip(exist))===JSON.stringify(strip(Object.assign({},it,{id})))){rep.dup++;continue;}
-        it.id=id;it._added=exist._added;it._source=source;it._updated=Date.now();S.bank[id]=it;delete S.flags[id];rep.updated++;continue;
+        it.id=id;
+        const remote=!opts.update,oldNumber=editionNumber(exist),incomingNumber=editionNumber(it);
+        const materialChanged=itemRevision(exist)!==itemRevision(it);
+        if(remote&&!materialChanged&&!incomingNumber&&oldNumber)it.revision=oldNumber;
+        if(canonicalJSON(strip(exist))===canonicalJSON(strip(it))){rep.dup++;continue;}
+        if(remote&&incomingNumber&&oldNumber&&incomingNumber<oldNumber){rep.dup++;continue;}
+        if(remote&&exist._ignoredRemote===itemRevision(it)&&incomingNumber<=oldNumber){rep.dup++;continue;}
+        if(remote&&materialChanged&&exist._history?.[itemRevision(it)]&&incomingNumber<=oldNumber){rep.dup++;continue;}
+        if(remote&&materialChanged&&incomingNumber<=oldNumber&&(oldNumber>0||exist._review||exist._revisedAt)){
+          if(canonicalJSON(exist._incoming)===canonicalJSON(it)){rep.dup++;continue;}
+          exist._incoming=it;rep.conflicts.push(id);continue;
+        }
+        if(!remote&&materialChanged&&oldNumber&&incomingNumber<oldNumber){rep.invalid.push({stem:norm(it.stem).slice(0,50),errs:['이전 판본입니다. 현재 판본에서 수정하세요.']});continue;}
+        if(!remote&&materialChanged)it.revision=Math.max(oldNumber+1,incomingNumber,1);
+        if(!it.revision&&oldNumber)it.revision=oldNumber;
+        replaceEdition(exist,it,source);rep.updated++;
+        const issues=qualityReasons(it);if(issues.length)rep.warned.push({id,warns:issues});
+        continue;
       }
       it.id=id;it._added=Date.now();it._source=source;it._batch=batchId;S.bank[id]=it;rep.added++;
-      if(v.warns.length)rep.warned.push({id,warns:v.warns});
+      const issues=[...new Set([...v.warns,...qualityReasons(it)])];
+      if(issues.length)rep.warned.push({id,warns:issues});
     }
   }
   if((rep.added||rep.updated)&&!source.startsWith('repo'))S.meta.batches.push({id:batchId,ts:Date.now(),source,added:rep.added,updated:rep.updated,metas:rep.metas});
+  if(activeErrata&&(rep.added||rep.updated)&&source!=='repo:data/errata.json')rep.errataApplied=applyErrata(activeErrata);
   return rep;
 }
 function reportHTML(rep){
@@ -437,6 +577,8 @@ function reportHTML(rep){
   let h=`<div class="banner ${rep.added||rep.updated||rep.cls?'ok':'info'}">새 문항 <b>${rep.added}</b>개 추가${rep.updated?` · 수정본 반영 <b>${rep.updated}</b>개`:''}${rep.cls?` · 분류 반영 <b>${rep.cls}</b>개`:''} · 중복 ${rep.dup}개 건너뜀${rep.invalid.length?` · <b>형식 오류 ${rep.invalid.length}개 제외</b>`:''}</div><div class="rep">`;
   for(const x of rep.invalid)h+=`<div class="bad-t">✗ "${esc(x.stem)}…" — ${esc(x.errs.join(', '))}</div>`;
   for(const x of rep.warned)h+=`<div class="warn">△ <span class="mono">${esc(x.id)}</span> — ${esc(x.warns.join(', '))}</div>`;
+  for(const id of rep.conflicts||[])h+=`<div class="warn">판본 대조 필요 · ${esc(id)} <button class="btn sm" data-act="review-edition" data-id="${esc(id)}">판본 검토</button></div>`;
+  if(rep.errataApplied)h+='<div>공개 정오표 '+rep.errataApplied+'건 적용 · 변경된 판본을 검토하세요.</div>';
   for(const m of rep.metas){
     if((m.conflicts||[]).length)h+=`<div class="warn">⚠ Gemini 보고 — 근거 충돌: ${esc(JSON.stringify(m.conflicts))}</div>`;
     if((m.coverage_gaps||[]).length)h+=`<div class="mut">ⓘ 근거 부족(coverage gap): ${esc(JSON.stringify(m.coverage_gaps))}</div>`;
@@ -446,11 +588,22 @@ function reportHTML(rep){
 }
 
 /* ============ 통계 & 간격반복 ============ */
-function statsMap(){const m={};for(const a of S.attempts){const s=m[a.qid]||(m[a.qid]={n:0,c:0,w:0,danger:0,last:null});s.n++;if(a.correct)s.c++;else{s.w++;if(a.conf===3)s.danger++;}s.last=a;}return m;}
+function statsMap(){
+  const stats={};
+  for(const a of S.attempts){
+    if(a.skipped||!isCurrentAttempt(a))continue;
+    const s=stats[a.qid]||(stats[a.qid]={n:0,c:0,w:0,danger:0,openDanger:false,last:null});
+    s.n++;if(a.correct)s.c++;else{s.w++;if(a.conf===3)s.danger++;}
+    if(a.conf===3)s.openDanger=!a.correct;
+    s.last=a;
+  }
+  return stats;
+}
 const isDue=(id,now)=>{const s=S.srs[id];return!!(s&&s.due<=now);};
-const dangerOpen=st=>!!(st&&st.danger>0&&!(st.last.correct&&st.last.conf===3));
+const dangerOpen=st=>!!st?.openDanger;
 const unresolved=st=>!!(st&&(!st.last.correct||dangerOpen(st)));
 function updateSrs(id,a){
+  if(!isCurrentAttempt(a))return;
   const s=S.srs[id]||{iv:0,reps:0,lapses:0};let iv;
   if(!a.correct){s.lapses++;iv=a.conf===3?0:1;}
   else if(a.conf===1)iv=1;
@@ -470,21 +623,22 @@ function calibTable(cal){
 }
 function misTally(atts){
   const t={};
-  for(const a of atts){if(a.correct||a.skipped)continue;const it=S.bank[a.qid];if(!it)continue;
-    const oa=(it.option_analysis||{})[a.choice]||{};const tag=oa.misconception||(it.misconception_tags||[])[0]||'(태그 없음)';
+  for(const a of atts){if(a.correct||a.skipped||!isCurrentAttempt(a))continue;const it=S.bank[a.qid];if(!it)continue;
+    const tag=misconceptionId(it,a.choice)||'(태그 없음)';
     const e=t[tag]||(t[tag]={tag,n:0,d:0,topics:new Set()});e.n++;if(a.conf===3)e.d++;if(it.topic)e.topics.add(it.topic);}
   return Object.values(t).sort((x,y)=>(y.n+y.d)-(x.n+x.d));
 }
 
 /* ============ Gemini 패킷 ============ */
 function weaknessPacket(atts,onlyUnresolved){
+  atts=atts.filter(isCurrentAttempt);
   const sm=statsMap();const by={};
   for(const a of atts){if(a.skipped||a.correct)continue;const e=by[a.qid]||(by[a.qid]={w:0,d:0,ch:new Set(),lastConf:a.conf});e.w++;if(a.conf===3)e.d++;e.ch.add(a.choice);e.lastConf=a.conf;}
   const rows=Object.entries(by).filter(([q])=>S.bank[q]&&(!onlyUnresolved||unresolved(sm[q]))).map(([qid,e])=>{
     const it=S.bank[qid];const ch=[...e.ch];
     const reasonings=atts.filter(a=>a.qid===qid&&!a.skipped&&!a.correct&&a.reasoning).slice(-3).map(a=>({chosen:a.choice,reasoning:a.reasoning}));
     return{qid,learner_reasoning:reasonings,subject:it.subject,system:it.system,subtopic:it.subtopic||'',related_systems:it.related_systems||[],topic:it.topic,learning_objective:it.learning_objective,question_type:it.question_type,difficulty:it.difficulty,
-      answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>((it.option_analysis||{})[c]||{}).misconception).filter(Boolean),
+      answer:it.answer,chosen:ch,chosen_misconceptions:ch.map(c=>misconceptionId(it,c)).filter(Boolean),
       wrong_count:e.w,dangerous_count:e.d,last_confidence:e.lastConf,takeaway:it.takeaway,misconception_tags:it.misconception_tags||[]};
   }).sort((a,b)=>(b.dangerous_count*2+b.wrong_count)-(a.dangerous_count*2+a.wrong_count)).slice(0,30);
   if(!rows.length){toast('아직 오답 기록이 없습니다','err');return null;}
@@ -536,7 +690,11 @@ function genRequest(){
   const sv=($('#rsub')&&$('#rsub').value)||'';const[rsubj,rsys,rsub]=sv?sv.split('|'):['','',''];
   const objs=Object.values(S.bank).filter(it=>(!rsys||(it.subject===rsubj&&it.system===rsys&&(!rsub||it.subtopic===rsub)))&&(!fl||[it.topic,it.system,it.subtopic,(it.related_systems||[]).join(' '),it.subject,it.learning_objective].join(' ').toLowerCase().includes(fl))).map(it=>it.learning_objective).filter(Boolean);
   let t=`/generate n=${n} level=${lv}${rsys?` subject="${rsubj}" system="${rsys}"`:''}${rsub?` subtopic="${rsub}"`:''}${f?` focus="${f}"`:''}`;
-  if(objs.length)t+=`\n\nexisting_objectives (이미 출제됨 — 중복 금지):\n`+JSON.stringify(objs,null,1);
+  if(objs.length)t+='\n\n현재 범위의 기존 학습목표\n'+JSON.stringify([...new Set(objs)],null,1);
+  const families=Object.values(S.bank).filter(it=>it.objective_id).map(it=>[it.objective_id,it.learning_objective]).filter(([id],i,all)=>all.findIndex(x=>x[0]===id)===i);
+  t+='\n같은 임상 판단은 objective_id를 재사용하세요. 처음 가르치는 사례는 variant_role="index", 나중에 혼자 풀 미공개 사례는 "transfer"로 지정하세요. 동일 지문 복제와 단순 이름 변경은 피하고 진료 환경, 핵심 소견, 대응을 바꾸는 조건을 달리해 주세요. 위 목록에 있는 목표도 새로운 맥락에서 다시 묻습니다.';
+  if(families.length)t+='\n현재 objective_id 목록\n'+JSON.stringify(families);
+  t+='\n모든 정답과 선지 해설에 연결되는 근거 위치를 source_refs에 기록하세요. 오답이 드러내는 공통 추론 오류에는 여러 사례에서 재사용할 option_analysis[선지].misconception_id를 붙이세요.';
   const tags=allTags();if(tags.length)t+=`\n\nexisting_misconception_tags (가능하면 재사용):\n`+JSON.stringify(tags);
   copy(t);
 }
@@ -568,7 +726,7 @@ function badges(it){
   if((it.related_systems||[]).length)h+=`<span class="bdg vio">연계: ${esc(it.related_systems.join(', '))}</span>`;
   if(it.difficulty)h+=`<span class="bdg">Lv${it.difficulty}</span>`;
   if(it.question_type)h+=`<span class="bdg">${esc(TYPE_KO[it.question_type]||it.question_type)}</span>`;
-  if(it.needs_review)h+=`<span class="bdg warn">검토 필요</span>`;
+  if(qualityReasons(it).length)h+='<span class="bdg warn">검토 대기</span>';
   return h;
 }
 function qBody(it,{interactive,choice,hideOptions=false}){
@@ -606,9 +764,15 @@ function explanation(it,choice){
   if((it.misconception_tags||[]).length)M.push(`<div><span class="mut">오개념 태그 </span>${it.misconception_tags.map(t=>`<code>${esc(t)}</code>`).join(' ')}</div>`);
   if((it.related_concepts||[]).length)M.push(`<div><span class="mut">연관 개념 </span>${it.related_concepts.map(esc).join(' · ')}</div>`);
   if(it.kmle_link)M.push(`<div><span class="mut">기출 연결 </span>${fmt(it.kmle_link)}</div>`);
-  if((it.source_refs||[]).length)M.push(`<div><span class="mut">근거 </span>${it.source_refs.map(r=>esc(typeof r==='string'?r:[r.file,r.section].filter(Boolean).join(' › '))).join(' / ')}</div>`);
+  if((it.source_refs||[]).length)M.push(`<div><span class="mut">근거 </span>${it.source_refs.map(r=>{
+    const url=typeof r==='string'?r:r?.public_url||r?.url||'';
+    const label=typeof r==='string'?r:[r?.file||r?.title,r?.section||r?.page||r?.timestamp].filter(Boolean).join(' › ')||url;
+    return /^https?:\/\/[^\s]+$/i.test(url)?'<a target="_blank" rel="noopener noreferrer" href="'+esc(url)+'">'+esc(label)+'</a>':esc(label);
+  }).join(' / ')}</div>`);
   if((it.outside_source_claims||[]).length)M.push(`<div class="warn">⚠ md 밖 주장: ${it.outside_source_claims.map(c=>esc(typeof c==='string'?c:JSON.stringify(c))).join(' / ')}</div>`);
-  if(it.needs_review||(it.generator_confidence&&it.generator_confidence!=='high'))M.push(`<div class="warn">⚠ 생성기 확신도 ${esc(it.generator_confidence||'?')} — 정답을 교과서로 한 번 더 확인하세요.</div>`);
+  const issues=qualityReasons(it);
+  if(issues.length)M.push(`<div class="warn">검토 대기 · ${esc(issues.join(' · '))}</div>`);
+  if(it._review&&it._review.signature===reviewSignature(it))M.push('<div>사용자 원문 대조 · '+esc(dstr(it._review.at))+' · '+esc(it._review.note)+'</div>');
   if(S.flags[it.id])M.push(`<div class="bad-t">🚩 오류 신고됨: ${esc(S.flags[it.id].reason||'')}</div>`);
   M.push(`<div class="mut mono">${esc(it.id)}${it._source?' · '+esc(it._source):''}</div>`);
   P.push(`<div class="meta">${M.join('')}</div>`);
@@ -690,6 +854,7 @@ function pool(f=setup){
   const sm=statsMap(),now=Date.now(),kw=(f.kw||'').trim().toLowerCase();
   const subSel=new Set(f.subtopics||[]),sysWithSub=new Set([...subSel].map(k=>k.split('|').slice(0,2).join('|')));
   let ids=Object.values(S.bank).filter(it=>{
+    if(!isStudyEligible(it)||isReservedTransfer(it))return false;
     if(f.track==='kmle'&&it.block_id)return false;
     if(f.track==='school'&&!it.block_id)return false;
     if(f.subjects.length&&!f.subjects.includes(it.subject||'미분류'))return false;
@@ -704,13 +869,19 @@ function pool(f=setup){
     return true;
   }).map(it=>it.id);
   const st=id=>sm[id],byDue=(a,b)=>S.srs[a].due-S.srs[b].due;
+  const presented=id=>S.meta.workspace?.exposures?.[id]||S.meta.workspace?.presentations?.[id];
   switch(f.mode){
-    case 'new':ids=shuffle(ids.filter(id=>!st(id)));break;
+    case 'new':ids=shuffle(ids.filter(id=>!st(id)&&!presented(id)));break;
     case 'due':ids=ids.filter(id=>isDue(id,now)).sort(byDue);break;
     case 'wrong':ids=shuffle(ids.filter(id=>st(id)&&!st(id).last.correct));break;
     case 'danger':ids=shuffle(ids.filter(id=>dangerOpen(st(id))));break;
     case 'random':ids=shuffle(ids);break;
-    default:{const due=ids.filter(id=>isDue(id,now)).sort(byDue),nw=shuffle(ids.filter(id=>!st(id))),rest=shuffle(ids.filter(id=>st(id)&&!isDue(id,now)));ids=[...due,...nw,...rest];}
+    default:{
+      const due=ids.filter(id=>isDue(id,now)).sort(byDue);
+      const fresh=id=>!st(id)&&!presented(id);
+      const later=ids.filter(id=>!isDue(id,now));
+      ids=[...due,...shuffle(later.filter(fresh)),...shuffle(later.filter(id=>!fresh(id)))];break;
+    }
   }
   return ids;
 }
@@ -803,13 +974,15 @@ function vSummary(){
 function vQuiz(){if(!session)return vSetup();if(session.done)return vSummary();return vQuestion();}
 function awaitingRecall(){return !!(session?.recallFirst&&!session.done&&!session.optionsOpened&&!session.ans[session.ids[session.i]]);}
 function startSession(ids,recallFirst=false){
-  ids=ids.filter(id=>S.bank[id]);
+  ids=ids.filter(id=>isStudyEligible(S.bank[id]));
   if(!ids.length){toast('조건에 맞는 문항이 없습니다','err');return;}
-  session={ids,recallFirst,i:0,ans:{},t0:Date.now(),qt:Date.now(),choice:null,conf:null,done:false};go('quiz');
+  const itemRevisions=Object.fromEntries(ids.map(id=>[id,itemRevision(S.bank[id])]));
+  session={ids,itemRevisions,recallFirst,i:0,ans:{},t0:Date.now(),qt:Date.now(),choice:null,conf:null,done:false};go('quiz');
 }
 async function submit(){
+  if(!isCurrentSession(session))return;
   const id=session.ids[session.i],it=S.bank[id];if(!session.choice||!session.conf)return;
-  const rec={qid:id,reasoning:session.reasoning||'',ts:Date.now(),choice:session.choice,conf:session.conf,correct:session.choice===it.answer,ms:Date.now()-session.qt};
+  const rec={qid:id,revision:itemRevision(it),answerKey:it.answer,reasoning:session.reasoning||'',ts:Date.now(),choice:session.choice,conf:session.conf,correct:session.choice===it.answer,ms:Date.now()-session.qt};
   S.attempts.push(rec);updateSrs(id,rec);session.ans[id]=rec;render();await save('attempts','srs');
 }
 function skip(reveal){const id=session.ids[session.i];session.ans[id]={qid:id,skipped:true,choice:null};if(reveal)render();else next();}
@@ -824,12 +997,70 @@ function genSubOptions(){
   }
   return h;
 }
+function qualityQueue(){
+  const items=Object.values(S.bank).filter(it=>!it.block_id&&!isStudyEligible(it));
+  if(!items.length)return '';
+  const rows=items.map(it=>'<li><button class="btn sm" data-act="review-edition" data-id="'+esc(it.id)+'">'+esc(it.topic||it.question||it.id)+'</button> '+esc([...qualityReasons(it),...(S.flags[it.id]?['사용자 오류 신고']:[])].join(' · '))+'</li>').join('');
+  return '<section class="card"><details><summary>검토 대기 '+items.length+'문항</summary><p>원문과 각 선지를 대조한 문항을 학습에 포함할 수 있습니다.</p><ul>'+rows+'</ul></details></section>';
+}
+function verifyEdition(id,raw,note,resolveFlag=false){
+  const previous=S.bank[id];
+  if(!previous||previous.block_id)throw Error('학교 문항은 해당 블록에서 확인하세요.');
+  if(raw.id!==id)throw Error('기존 문항 ID를 유지하세요.');
+  if(!norm(note))throw Error('대조한 원문 위치와 결론을 남겨 주세요.');
+  const next=normalizeItem(strip(raw));next.id=id;delete next.block_id;delete next.exam_id;
+  const problems=[...validate(next).errs,...missingQualityEvidence(next)];
+  if(problems.length)throw Error(problems.join(' · '));
+  const changed=itemRevision(next)!==itemRevision(previous);
+  next.revision=Math.max(editionNumber(previous)+(changed?1:0),editionNumber(next),1);
+  replaceEdition(previous,next,'user:review');
+  if(previous._incoming)next._ignoredRemote=itemRevision(previous._incoming);
+  delete next._changedPending;delete next._incoming;
+  next._review={signature:reviewSignature(next),note:norm(note),at:Date.now()};
+  if(resolveFlag)delete S.flags[id];
+  return next;
+}
+function reviewEdition(id){
+  const it=S.bank[id];if(!it||it.block_id)return;
+  const dialog=document.createElement('dialog');dialog.className='campus-dialog';
+  const editable=strip(it);
+  dialog.innerHTML='<form><h2>정답과 근거 대조</h2><p>'+esc(it.topic||it.question||id)+'</p><p>'+esc(qualityReasons(it).join(' · '))+'</p>'
+    +(it._incoming?'<p>저장소에 다른 판본이 있습니다. 두 판본의 지문, 정답, 해설을 원문과 비교하세요.</p><button class="btn sm" type="button" data-load-current>현재 판본 불러오기</button> <button class="btn sm" type="button" data-load-incoming>저장소 판본 불러오기</button>':'')
+    +'<label class="field">문항 원문과 선지 해설 (JSON)<textarea name="item" rows="13" required></textarea></label>'
+    +'<label class="field">추가 근거 (URL 또는 서명·연도·절)<input name="reference"></label>'
+    +'<label class="field">확인한 근거와 결론<input name="note" required maxlength="1500"></label>'
+    +(S.flags[id]?'<label><input type="checkbox" name="resolve"> 신고 해결 확인 · '+esc(S.flags[id].reason||'오류 신고')+'</label>':'')
+    +'<p role="status" class="warn"></p><div class="actions"><button class="btn pri" type="submit">원문 대조 결과 저장</button><button class="btn ghost" type="button" data-close>닫기</button></div></form>';
+  const form=dialog.querySelector('form'),area=form.elements.namedItem('item');
+  area.value=JSON.stringify(editable,null,2);
+  form.querySelector('[data-load-current]')?.addEventListener('click',()=>{area.value=JSON.stringify(editable,null,2);});
+  form.querySelector('[data-load-incoming]')?.addEventListener('click',()=>{area.value=JSON.stringify(it._incoming,null,2);});
+  form.querySelector('[data-close]').addEventListener('click',()=>dialog.close());
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    try{
+      const raw=JSON.parse(area.value),reference=form.elements.reference.value.trim();
+      if(reference)raw.source_refs=[...(Array.isArray(raw.source_refs)?raw.source_refs:[]),reference];
+      verifyEdition(id,raw,form.elements.note.value,!!form.elements.resolve?.checked);
+      await saveAll();dialog.close();render();toast('근거 검토 결과를 저장했습니다.');
+    }catch(error){form.querySelector('[role=status]').textContent=error.message;}
+  });
+  dialog.addEventListener('close',()=>dialog.remove());document.body.appendChild(dialog);dialog.showModal();
+}
+function revisionHistory(it){
+  const records=Object.entries(it._history||{});
+  if(!records.length)return '';
+  return '<details><summary>이전 판본과 당시 채점 ('+records.length+')</summary>'+records.map(([version,r])=>{
+    const old=r.item||{},attempts=S.attempts.filter(a=>a.qid===it.id&&a.revision===version);
+    return '<section><h4>'+esc(old.topic||it.id)+'</h4><p>'+esc(old.stem)+'</p><p>당시 정답 '+esc(old.answer)+' · '+esc(optText(old,old.answer))+'</p><p>당시 기준 정답 '+attempts.filter(a=>a.correct).length+' / '+attempts.length+'회</p></section>';
+  }).join('')+'</details>';
+}
 function vAdd(){
-  return `<div class="card"><h2>문항 추가</h2><p class="mut">사용하는 AI에서 받은 문항 JSON을 붙여넣으세요. 학교 시험 문항은 해당 블록에서 가져오면 시험범위와 연결됩니다. \`\`\`json 코드블록이 섞여 있어도, 여러 배치를 한 번에 붙여도 됩니다. /audit 수정본(같은 id)은 기존 문항을 덮어씁니다.</p>
+  return qualityQueue()+`<div class="card"><h2>문항 추가</h2><p class="mut">AI에서 받은 문항 JSON을 붙여넣으세요. 같은 ID의 수정본은 이전 판본과 풀이 이력을 보존합니다. 학교 문항은 해당 블록에서 가져오세요.</p>
   <textarea id="paste" rows="12" placeholder='{"schema_version":"2.0","batch_meta":{...},"items":[...]}'></textarea>
   <div class="actions"><button class="btn pri" data-act="ingestPaste">붙여넣은 JSON 추가</button><label class="btn ghost">파일에서 추가 (.json)<input type="file" id="files" accept=".json,application/json,text/plain" multiple hidden></label></div>
   <div id="report"></div></div>
-  <div class="card"><h2>AI 학습 요청문 만들기</h2><p class="mut">이미 출제된 learning objective 목록을 함께 복사해서, Gemini가 같은 문제를 반복하지 않게 합니다. 세부 주제 옆 숫자는 현재 문항 수 — <b>0개인 주제</b>부터 채우면 빈틈이 빨리 메워집니다.</p>
+  <div class="card"><h2>AI 학습 요청문 만들기</h2><p class="mut">기존 학습목표와 연계해 새로운 임상 상황과 전이 문항을 요청합니다.</p>
   <div class="row"><label class="field" style="min-width:220px">분과 › 세부 주제<select id="rsub"><option value="">(지정 안 함)</option>${genSubOptions()}</select></label>
   <label class="field" style="flex:1">추가 초점 (선택)<input type="text" id="rfocus" placeholder="예: 저나트륨혈증의 교정 속도"></label>
   <label class="field">문항 수<input type="number" id="rn" value="10" min="1" max="10" style="width:80px"></label>
@@ -838,7 +1069,7 @@ function vAdd(){
 }
 
 /* ============ 뷰: 문항 목록 ============ */
-function lastChoice(id){let c=null;for(const a of S.attempts)if(a.qid===id)c=a.correct?null:a.choice;return c;}
+function lastChoice(id){let c=null;for(const a of S.attempts)if(a.qid===id&&isCurrentAttempt(a))c=a.correct?null:a.choice;return c;}
 function browseList(){
   const sm=statsMap(),q=browse.q.trim().toLowerCase();
   let list=Object.values(S.bank).filter(it=>{
@@ -892,28 +1123,92 @@ function rcEditor(id,d){
 }
 function detailBody(it,choice,ctx){
   let h=`<div class="qhead">${badges(it)}</div>`+qBody(it,{interactive:false,choice})+explanation(it,choice);
+  if(!it.block_id)h+='<button class="btn sm" data-act="review-edition" data-id="'+esc(it.id)+'">정답·근거 검토</button>';
+  h+=revisionHistory(it);
   if(ctx==='browse')h+=`<div class="actions"><button class="btn sm" data-act="solo" data-id="${esc(it.id)}">이 문항 풀기</button><button class="btn ghost sm" data-act="flag" data-id="${esc(it.id)}">${S.flags[it.id]?'🚩 신고 해제':'🚩 오류 신고'}</button><button class="btn ghost sm" data-act="reclass" data-id="${esc(it.id)}">분류 수정</button><button class="btn dangerb sm" data-act="del" data-id="${esc(it.id)}">삭제</button></div>`;
   return h;
 }
 
 /* ============ 뷰: 백업·동기화 ============ */
+function publicReference(r){
+  const address=typeof r==='object'&&r?(r.public_url||r.url):r;
+  if(typeof address!=='string')return null;
+  try{
+    const url=new URL(address.trim());
+    if(!['https:','http:'].includes(url.protocol)||url.username||url.password)return null;
+    const bibliographic=/^(?:doi\.org|(?:pubmed|pmc)\.ncbi\.nlm\.nih\.gov|academic\.oup\.com)$/i.test(url.hostname);
+    if(!bibliographic&&!(r?.public_url||r?.visibility==='public'))return null;
+    return {url:url.origin+url.pathname};
+  }catch{return null;}
+}
+function publicBankItems(){
+  const plainFields=['id','subject','system','subtopic','topic','learning_objective','question_type','difficulty','stem','question','findings_text','answer','takeaway','revision','objective_id','variant_role','transfer_days'];
+  const selectFields=(row,keys)=>Object.fromEntries(keys.filter(k=>['string','number','boolean'].includes(typeof row?.[k])).map(k=>[k,row[k]]));
+  const output=[];
+  for(const it of Object.values(S.bank)){
+    if(it.block_id||it.exam_id||String(it._source||'').startsWith('school:')||!isStudyEligible(it))continue;
+    const q=selectFields(it,plainFields);
+    for(const key of ['related_systems','causal_chain','misconception_ids','misconception_tags','image_search_keywords']){
+      if(Array.isArray(it[key]))q[key]=it[key].filter(v=>typeof v==='string');
+    }
+    q.options=it.options.map(o=>selectFields(o,['label','text']));
+    if(Array.isArray(it.labs))q.labs=it.labs.map(l=>selectFields(l,['name','value','unit','ref']));
+    const rationale=['verdict','mechanism','why_best','trap','correct_when','explanation','rationale','misconception','misconception_id'];
+    q.option_analysis=Object.fromEntries(q.options.map(({label})=>[label,selectFields(it.option_analysis?.[label],rationale)]));
+    q.source_refs=(it.source_refs||[]).map(publicReference).filter(Boolean);
+    if(!q.source_refs.length)q.needs_review=true;
+    output.push(q);
+  }
+  return output;
+}
 function vBackup(){
+  const publishable=publicBankItems();
   return `<div class="card"><h2>전체 백업</h2><p class="mut">문항 + 풀이 기록 + 복습 일정 + 신고 + 추론 노트 + 북마크 + 블록 시험범위 + 실기 기록을 JSON 파일로 저장합니다. <b>강의 PDF·PPT·녹음 원본은 이 JSON에 포함되지 않습니다.</b> 원본은 학교 블록시험의 자료 묶음 ZIP으로 별도 보관하세요. 브라우저 데이터는 캐시 삭제·기기 변경 시 사라질 수 있으니 <b>주 1회</b> 받아서 Google Drive 등에 보관하세요. 다른 기기로 옮길 때도 이 파일을 가져오기 하면 됩니다.</p>
   <div class="actions"><button class="btn pri" data-act="exportBackup">전체 백업 내보내기</button><label class="btn">백업 가져오기 (병합)<input type="file" id="bfile" accept=".json,application/json" hidden></label></div>
   <div class="mut" id="est" style="margin-top:10px"></div></div>
-  <div class="card"><h2>GitHub 저장소로 문항 동기화</h2><p class="mut"><b>bank.json</b>을 내보내 GitHub 저장소 최상위에 올리면, 어느 기기에서 사이트를 열든 문항이 자동으로 합쳐집니다. (풀이 기록은 올라가지 않습니다 — 기록 이동은 위의 전체 백업을 쓰세요.) 공개 저장소라면 bank.json도 공개된다는 점을 기억하세요.</p>
-  <div class="actions"><button class="btn" data-act="exportBank">bank.json 내보내기</button></div></div>
+  <div class="card"><h2>공개용 KMLE 문항 내보내기</h2><p class="mut">학습 가능한 KMLE ${publishable.length}문항의 지문·선지·해설과 공개 서지 링크를 내보냅니다. 학교 문항, 개인 메모·검토 이력, 자료 파일명은 개인 백업에 보관됩니다. DOI·PubMed·공개 학술지 또는 공개로 지정한 링크가 없는 ${publishable.filter(q=>q.needs_review).length}문항은 가져오는 기기에서 근거를 확인해야 합니다.</p>
+  <div class="actions"><button class="btn" data-act="exportBank" ${publishable.length?'':'disabled'}>공개용 bank.json · ${publishable.length}문항</button></div></div>
   <div class="card"><h2>초기화</h2><p class="mut">이 브라우저의 모든 문항, 기록, 블록 자료 원본을 지웁니다. 되돌릴 수 없습니다.</p><div class="actions"><button class="btn dangerb" data-act="reset">모두 삭제</button></div></div>`;
 }
 function mergeBackup(b){
   let items=0,atts=0;
-  for(const it of Object.values(b.bank||{}))if(it&&it.id&&!S.bank[it.id]){S.bank[it.id]=it;items++;}
+  for(const incoming of Object.values(b.bank||{})){
+    if(!incoming?.id||!Array.isArray(incoming.options)||validate(incoming).errs.length)continue;
+    let current=S.bank[incoming.id];
+    if(!current){S.bank[incoming.id]=incoming;items++;continue;}
+    const incomingVersion=itemRevision(incoming),currentVersion=itemRevision(current);
+    if(currentVersion!==incomingVersion){
+      if(editionNumber(incoming)>editionNumber(current)){
+        const next=normalizeItem(strip(incoming));replaceEdition(current,next,'backup');current=next;
+      }else if(!current._history?.[incomingVersion]&&editionNumber(incoming)===editionNumber(current)){
+        current._incoming=strip(incoming);
+      }
+    }
+    current._history={...(incoming._history||{}),...(current._history||{})};
+    if(itemRevision(current)!==incomingVersion){
+      current._history[incomingVersion] ||= {item:strip(incoming),at:incoming._updated||0};
+      continue;
+    }
+    const review=incoming._review;
+    if(review?.signature===reviewSignature(current)&&(!current._review||review.at>current._review.at)){
+      current._review=review;delete current._changedPending;
+    }
+  }
   const seen=new Set(S.attempts.map(a=>a.qid+'|'+a.ts));
-  for(const a of(b.attempts||[])){const k=a.qid+'|'+a.ts;if(!seen.has(k)){S.attempts.push(a);seen.add(k);atts++;}}
+  for(const a of(b.attempts||[])){
+    const k=a.qid+'|'+a.ts;if(seen.has(k))continue;
+    const source=b.bank?.[a.qid],revision=a.revision||itemRevision(source)||'unknown';
+    const key=a.answerKey??(source&&itemRevision(source)===revision?source.answer:source?._history?.[revision]?.item?.answer);
+    S.attempts.push({...a,revision,answerKey:key});seen.add(k);atts++;
+  }
   S.attempts.sort((x,y)=>x.ts-y.ts);
-  for(const[k,v]of Object.entries(b.srs||{}))if(!S.srs[k]||(v.last||0)>(S.srs[k].last||0))S.srs[k]=v;
+  for(const[k,v]of Object.entries(b.srs||{})){
+    const revision=v.revision||itemRevision(b.bank?.[k]);
+    if(revision&&revision===itemRevision(S.bank[k])&&(!S.srs[k]||(v.last||0)>(S.srs[k].last||0)))S.srs[k]={...v,revision};
+  }
   Object.assign(S.flags,b.flags||{});
   if(b.meta&&Array.isArray(b.meta.batches)){const ids=new Set(S.meta.batches.map(x=>x.id));for(const x of b.meta.batches)if(!ids.has(x.id))S.meta.batches.push(x);}
+  if(activeErrata)applyErrata(activeErrata);
   return{items,atts};
 }
 async function delItem(id){
@@ -950,12 +1245,13 @@ app.addEventListener('click',async e=>{
     case 'peek':skip(true);break;
     case 'next':next();break;
     case 'endSession':if(confirm('세션을 종료하고 결과를 볼까요? (안 푼 문항도 해설은 볼 수 있습니다)')){session.done=true;render();window.scrollTo(0,0);}break;
-    case 'start':startSession(pool().slice(0,Math.max(1,setup.n||20)));break;
-    case 'quick':startSession(pool(Object.assign(JSON.parse(JSON.stringify(FILTER0)),{mode:b.dataset.mode})).slice(0,20));break;
+    case 'start':startSession(pool().slice(0,Math.max(1,setup.n||20)),['smart','due','wrong','danger'].includes(setup.mode));break;
+    case 'quick':startSession(pool(Object.assign(JSON.parse(JSON.stringify(FILTER0)),{mode:b.dataset.mode})).slice(0,20),['smart','due','wrong','danger'].includes(b.dataset.mode));break;
     case 'toggleSys':{const k=b.dataset.k;dashOpen.has(k)?dashOpen.delete(k):dashOpen.add(k);render();break;}
     case 'copyClassify':copy(classifyPacket());break;
     case 'newSession':session=null;render();break;
     case 'solo':startSession([id]);break;
+    case 'review-edition':reviewEdition(id);break;
     case 'flag':toggleFlag(id);break;
     case 'del':delItem(id);break;
     case 'reclass':{
@@ -981,7 +1277,7 @@ app.addEventListener('click',async e=>{
       catch(err){$('#report').innerHTML=`<div class="banner bad">${esc(err.message)}</div>`;}
       break;}
     case 'exportBackup':download(`kmle-backup-${dstr(Date.now())}.json`,{schema:'kmle-qbank-backup',version:1,exported_at:new Date().toISOString(),bank:S.bank,attempts:S.attempts,srs:S.srs,flags:S.flags,meta:S.meta});break;
-    case 'exportBank':download('bank.json',{schema:'kmle-qbank-bank',version:1,exported_at:new Date().toISOString(),count:Object.keys(S.bank).length,items:Object.values(S.bank).map(strip)});break;
+    case 'exportBank':{const items=publicBankItems();if(items.length)download('bank.json',{schema:'kmle-qbank-bank',version:2,exported_at:new Date().toISOString(),count:items.length,items});break;}
     case 'reset':if(prompt('정말 모두 지우려면 "삭제"라고 입력하세요. (먼저 백업을 내보내세요)')==='삭제'){await clearCampusAssets();S.bank={};S.attempts=[];S.srs={};S.flags={};S.meta={batches:[],deleted:[]};session=null;await saveAll();toast('초기화됨');render();}break;
   }
 });
@@ -1041,9 +1337,13 @@ document.addEventListener('keydown',e=>{
 });
 
 </script>
-<script src="workspace.js?v=praesoma1"></script>
-<script src="campus.js?v=rounds1"></script>
-<script src="rounds.js?v=1"></script>
+<script src="transfer.js?v=clinical2"></script>
+<script src="workspace.js?v=clinical2"></script>
+<script src="reason-patterns.js?v=clinical2"></script>
+<script src="campus.js?v=clinical2"></script>
+<script src="visual-practice.js?v=clinical2"></script>
+<script src="rounds.js?v=clinical2"></script>
+<script src="mock.js?v=clinical2"></script>
 <script>
 /* ============ 시작 ============ */
 (async()=>{app.innerHTML='<div class="card mut">불러오는 중…</div>';await loadLocal();render();syncRemote();})();

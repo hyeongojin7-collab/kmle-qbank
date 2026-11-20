@@ -25,15 +25,17 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
 new vm.Script(scripts.at(-1)[1]); // Bootstrap syntax, without executing network/storage.
 run(scripts[0][1]);
-run(fs.readFileSync(path.join(root, 'workspace.js'), 'utf8'));
-run(fs.readFileSync(path.join(root, 'campus.js'), 'utf8'));
-run(fs.readFileSync(path.join(root, 'rounds.js'), 'utf8'));
+for (const [, source] of html.matchAll(/<script src="([^"?]+)(?:\?[^"]*)?"><\/script>/g)) {
+  run(fs.readFileSync(path.join(root, source), 'utf8'));
+}
 run(`
   const testStorage = new Map();
   kvGet = async k => testStorage.get(k);
   kvSet = async (k,v) => testStorage.set(k, JSON.parse(JSON.stringify(v)));
   const fixture = id => ({id,subject:'내과',system:'신장',stem:'UI fixture '+id,
-    question:'Fixture',options:[{label:'A',text:'A'},{label:'B',text:'B'}],answer:'A',difficulty:3});
+    question:'Fixture',options:[{label:'A',text:'A'},{label:'B',text:'B'}],answer:'A',difficulty:3,
+    source_refs:[{file:'Fixture handbook',section:'p.1'}],option_analysis:{
+      A:{verdict:'correct',why_best:'Fixture rationale'},B:{verdict:'incorrect',trap:'Fixture alternate'}}});
   S.bank={legacy:fixture('legacy'),pending:{...fixture('pending'),block_id:'b',school_verified:false},
     approved:{...fixture('approved'),block_id:'b',school_verified:true}};
 `);
@@ -92,7 +94,8 @@ run(`
   run("roundAction('inspect',4);roundAction('act',0);");
   assert.ok(run('vRounds()').includes('13 mm') && run('vRounds()').includes('94까지'));
   run("roundAction('act',1);roundAction('finish');roundAction('switch',1);roundAction('act',2);roundAction('finish');");
-  assert.ok(run('ROUNDS.every(c=>roundDraft(c).done)'));
+  assert.ok(run('ROUNDS.slice(0,2).every(c=>roundDraft(c).done)'));
+  assert.equal(run('roundDraft(ROUNDS[2]).done'), false);
   assert.ok(run('roundCoaching(ROUNDS[0],roundDraft(ROUNDS[0]))').includes('94까지'));
   await run('loadLocal()');
   assert.equal(run('roundIndex'),1);
@@ -114,7 +117,7 @@ run(`
   assert.equal(bytes.readUInt16LE(bytes.length - 12), 2);
   const zipPath = path.join(require('node:os').tmpdir(), 'qbank-regression.zip');
   fs.writeFileSync(zipPath, bytes);
-  require('node:child_process').execFileSync('python3', ['-c',
+  require('node:child_process').execFileSync(process.platform === 'win32' ? 'python' : 'python3', ['-c',
     'import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); assert z.testzip() is None; assert z.read("materials/01/강의.txt")==b"source bytes"; assert len(z.namelist())==2', zipPath]);
   fs.unlinkSync(zipPath);
   console.log('PASS: ZIP CRC, UTF-8 filenames, directory entries and independent extraction');
